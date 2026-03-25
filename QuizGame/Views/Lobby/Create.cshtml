@@ -1,0 +1,32 @@
+﻿@model QuizGame.ViewModels.CreateGameViewModel
+
+@{
+    ViewData["Title"] = "Create";
+    var categoryList = new SelectList(Model.Categories, "Id", "Name");
+}
+
+<form asp-controller="Lobby" asp-action="Create" method="post">
+
+    <div class="mb-3">
+        <label asp-for="CategoryId" class="form-label">Category</label>
+        <select class="form-select" asp-for="CategoryId" asp-items="categoryList">
+            <option value="">-- All Categories --</option>
+        </select>
+        <span asp-validation-for="CategoryId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="QuestionCount" class="form-label">Number of Questions</label>
+        <input type="number" class="form-control" asp-for="QuestionCount" placeholder="Enter a number">
+            <span asp-validation-for="QuestionCount" class="text-danger"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create New Lobby</button>
+
+    </form>
+
+    <a class="btn btn-secondary mt-2" asp-action="Index">Back to List</a>
+
+    @section Scripts {
+        @await Html.PartialAsync("_ValidationScriptsPartial")
+    }

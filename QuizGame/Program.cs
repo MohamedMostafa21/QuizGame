@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using QuizGame.Data;
 using QuizGame.Models;
+using QuizGame.Repositories.Implementations;
+using QuizGame.Repositories.Interfaces;
+using QuizGame.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,10 +19,19 @@ builder.Services.AddIdentity<User, IdentityRole>(options => {
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 
 // Register here ya shabab
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<GameService>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IGameRepository, GameRepository>();
+builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
+builder.Services.AddScoped<IGameQuestionRepository, GameQuestionRepository>();
+builder.Services.AddScoped<IGamePlayerRepository, GamePlayerRepository>();
+
 
 
 var app = builder.Build();
