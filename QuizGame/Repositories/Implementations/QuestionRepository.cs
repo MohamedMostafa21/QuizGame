@@ -13,10 +13,17 @@ namespace QuizGame.Repositories.Implementations
             _context = context;
         }
         
-        public IQueryable<Question> GetRandomSample(int categoryId, int count)
+        public IQueryable<Question> GetRandomSample(int? categoryId, int count)
         {
-            return _context.Questions
-                .Where(q => q.CategoryId == categoryId)
+            IQueryable<Question> query = _context.Questions;
+
+            if (categoryId != null)
+            {
+                query = query
+                    .Where(q => q.CategoryId == categoryId);
+            }
+
+            return query
                 .OrderBy(q => Guid.NewGuid())
                 .Take(count);
         }
