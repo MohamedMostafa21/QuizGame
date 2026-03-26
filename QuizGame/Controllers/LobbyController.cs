@@ -40,9 +40,10 @@ namespace QuizGame.Controllers
             return RedirectToAction("Room", new { roomCode });
         }
 
+        [HttpGet]
         public IActionResult Room(string roomCode)
         {
-            return View();
+            return View(_gameService.GetRoomViewModel(roomCode));
         }
 
         [HttpGet]

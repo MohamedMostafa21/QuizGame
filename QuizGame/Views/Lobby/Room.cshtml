@@ -1,0 +1,68 @@
+﻿@model QuizGame.ViewModels.RoomViewModel
+
+@{
+    ViewData["Title"] = "Room";
+}
+
+<h1>Room</h1>
+
+<div>
+    <h4>RoomViewModel</h4>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.HostName)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.HostName)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.RoomCode)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.RoomCode)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.CategoryName)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.CategoryName)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.QuestionCount)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.QuestionCount)
+        </dd>
+    </dl>
+</div>
+<dt class="col-sm-2">
+    Players
+</dt>
+<dd class="col-sm-10">
+    @if (Model.GamePlayers != null && Model.GamePlayers.Any())
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var player in Model.GamePlayers)
+                {
+                    <tr>
+                        <td>@player.User.UserName</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <span>No players yet</span>
+    }
+</dd>
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
