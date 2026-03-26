@@ -6,6 +6,9 @@
 }
 
 <form asp-controller="Lobby" asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="All" class="text-danger"></div>
 
     <div class="mb-3">
         <label asp-for="CategoryId" class="form-label">Category</label>
@@ -21,7 +24,7 @@
             <span asp-validation-for="QuestionCount" class="text-danger"></span>
         </div>
 
-        <button type="submit" class="btn btn-primary">Create New Lobby</button>
+        <button type="submit" class="btn btn-primary">Create Room</button>
 
     </form>
 

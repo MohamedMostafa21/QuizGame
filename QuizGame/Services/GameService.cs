@@ -1,6 +1,9 @@
-﻿using QuizGame.Models;
+﻿using System;
+using QuizGame.Models;
 using QuizGame.Repositories.Interfaces;
 using QuizGame.ViewModels;
+using System.Linq;
+using Microsoft.AspNetCore.Identity;
 
 namespace QuizGame.Services
 {
@@ -11,19 +14,22 @@ namespace QuizGame.Services
         private readonly IQuestionRepository _questionRepository;
         private readonly IGameQuestionRepository _gameQuestionRepository;
         private readonly IGamePlayerRepository _gamePlayerRepository;
+        private readonly UserManager<User> _userManager;
 
         public GameService(
             ICategoryRepository categoryRepository,
             IGameRepository gameRepository,
             IQuestionRepository questionRepository,
             IGameQuestionRepository gameQuestionRepository,
-            IGamePlayerRepository gamePlayerRepository)
+            IGamePlayerRepository gamePlayerRepository,
+            UserManager<User> userManager)
         {
             _categoryRepository = categoryRepository;
             _gameRepository = gameRepository;
             _questionRepository = questionRepository;
             _gameQuestionRepository = gameQuestionRepository;
             _gamePlayerRepository = gamePlayerRepository;
+            _userManager = userManager;
         }
 
         public CreateGameViewModel GetCreateGameViewModel()
@@ -68,6 +74,7 @@ namespace QuizGame.Services
             };
 
             _gameRepository.Add(game);
+            _gameRepository.Save();
             return game;
         }
 
@@ -80,6 +87,7 @@ namespace QuizGame.Services
             List<GameQuestion> gameQuestions = MapToGameQuestions(questions, game.Id);
 
             _gameQuestionRepository.CreateBulk(gameQuestions);
+            _gameQuestionRepository.Save();
         }
 
         private List<GameQuestion> MapToGameQuestions(List<Question> questions, int gameId)
@@ -105,15 +113,50 @@ namespace QuizGame.Services
             };
 
             _gamePlayerRepository.Add(hostPlayer);
+            _gamePlayerRepository.Save();
         }
 
         private string GenerateRoomCode()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var random = new Random();
+            Random random = new Random();
             return new string(Enumerable.Range(0, 5)
                 .Select(_ => chars[random.Next(chars.Length)])
                 .ToArray());
+        }
+
+        public RoomViewModel GetRoomViewModel(string roomCode)
+        {
+            Game? game = _gameRepository.GetByRoomCode(roomCode);
+
+            if (game == null)
+                return null!;
+
+            User? hostUser = _userManager.FindByIdAsync(game.HostId).GetAwaiter().GetResult();
+
+            Category? category = game.Category;
+            if (game.CategoryId != null)
+            {
+                category = _categoryRepository.Get(game.CategoryId.Value);
+            }
+
+            List<GamePlayer> players = _gamePlayerRepository.GetByGame(game.Id).ToList();
+            foreach (GamePlayer p in players)
+            {
+                if (p.User == null)
+                {
+                    p.User = _userManager.FindByIdAsync(p.UserId).GetAwaiter().GetResult()!;
+                }
+            }
+
+            return new RoomViewModel
+            {
+                HostName = hostUser?.UserName,
+                RoomCode = game.RoomCode,
+                CategoryName = category?.Name ?? "All Categories",
+                QuestionCount = game.QuestionCount,
+                GamePlayers = players,
+            };
         }
     }
 }
