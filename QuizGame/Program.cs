@@ -26,12 +26,15 @@ builder.Services.AddSignalR();
 // Register here ya shabab
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<GameService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<LeaderboardService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
 builder.Services.AddScoped<IGameQuestionRepository, GameQuestionRepository>();
 builder.Services.AddScoped<IGamePlayerRepository, GamePlayerRepository>();
-
+builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+builder.Services.AddScoped<IPlayerAnswerRepository, PlayerAnswerRepository>();
 
 
 var app = builder.Build();
