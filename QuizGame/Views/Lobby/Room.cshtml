@@ -69,7 +69,7 @@
 }
 
 <div class="d-flex justify-content-between">
-    <a asp-action="Index">Back to List</a>
+    <a asp-action="Leave" asp-route-roomCode="@Model.RoomCode">Leave</a>
 
     @if (Model.HostId == Model.UserId)
     {
@@ -103,6 +103,18 @@
         tbody.appendChild(tr);
         });
 
+        connection.on("PlayerLeft", function (userName) {
+            const tbody = document.getElementById("playersList");
+            const rows = tbody.getElementsByTagName("tr");
+            for (let i = 0; i < rows.length; i++) {
+                const td = rows[i].getElementsByTagName("td")[0];
+                if (td && td.textContent === userName) {
+                    tbody.removeChild(rows[i]);
+                    break;
+                }
+            }
+        });
+            
         connection.on("InitialPlayers", function (userNames) {
         const noPlayersMsg = document.getElementById("noPlayersMessage");
         if (noPlayersMsg)
@@ -113,6 +125,7 @@
         playersTable.style.display = userNames && userNames.length ? "table" : "none";
 
         const tbody = document.getElementById("playersList");
+
         if (tbody && userNames) {
         tbody.innerHTML = '';
         userNames.forEach(function (name) {

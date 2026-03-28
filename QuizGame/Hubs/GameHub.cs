@@ -22,6 +22,16 @@ public class GameHub : Hub
         await Clients.Caller.SendAsync("InitialPlayers", playerNames);
     }
 
+    public async Task LeaveRoomGroup(string roomCode, string UserId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomCode);
+
+        var vm = _gameService.GetRoomViewModel(roomCode, UserId);
+        var playerNames = vm?.GamePlayers?.Select(p => p.User?.UserName ?? string.Empty).Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new System.Collections.Generic.List<string>();
+
+        await Clients.Group(roomCode).SendAsync("UpdatePlayers", playerNames);
+    }
+
     public async Task StartGame(string roomCode)
     {
         await Clients.Group(roomCode).SendAsync("NavigateToGame", roomCode);

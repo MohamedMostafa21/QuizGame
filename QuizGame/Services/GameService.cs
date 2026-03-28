@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using QuizGame.Hubs;
 using QuizGame.Models;
+using QuizGame.Repositories.Implementations;
 using QuizGame.Repositories.Interfaces;
 using QuizGame.ViewModels;
 using System;
@@ -141,7 +142,7 @@ namespace QuizGame.Services
 
             User? hostUser = _userManager.FindByIdAsync(game.HostId).GetAwaiter().GetResult();
 
-            Category? category = game.Category;
+            Category? category = null;
             if (game.CategoryId != null)
             {
                 category = _categoryRepository.Get(game.CategoryId.Value);
@@ -174,8 +175,12 @@ namespace QuizGame.Services
                 return JoinGameResult.GameNotFound;
 
             Game? game = _gameRepository.GetByRoomCode(roomCode);
+
             if(game.Status != GameStatus.Waiting)
                 return JoinGameResult.GameInProgress;
+            
+            if(_gamePlayerRepository.GetByGame(game.Id).Any(p => p.UserId == userId))
+                return JoinGameResult.Success;
 
             GamePlayer newPlayer = new GamePlayer
             {
@@ -204,15 +209,28 @@ namespace QuizGame.Services
 
             game.Status = GameStatus.InProgress;
             _gameRepository.Update(game);
-
-            GameQuestion? firstQuestion = _gameQuestionRepository.GetNextPending(game.Id);
-
-            if (firstQuestion == null)
-                throw new Exception("No questions found for this game.");
-
-            _gameQuestionRepository.Activate(firstQuestion.Id);
+            _gameRepository.Save();
 
             _gameHubContext.Clients.Group(vm.RoomCode).SendAsync("NavigateToGame", vm.RoomCode);
+        }
+
+        internal void LeaveGame(string roomCode, string? userId)
+        {
+            Game? game = _gameRepository.GetByRoomCode(roomCode);
+
+            int gameId = game?.Id ?? -1;
+
+            _gamePlayerRepository.RemovePlayer(gameId, userId);
+            _gamePlayerRepository.Save();
+
+            _gameHubContext.Clients.Group(roomCode)
+                .SendAsync("PlayerLeft", _userManager.FindByIdAsync(userId).GetAwaiter().GetResult()?.UserName);
+        }
+
+        internal int GetGameIdByRoomCode(string roomCode)
+        {
+            Game? game = _gameRepository.GetByRoomCode(roomCode);
+            return game?.Id ?? -1;
         }
     }
 }

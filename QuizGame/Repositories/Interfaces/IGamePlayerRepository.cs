@@ -7,5 +7,6 @@ namespace QuizGame.Repositories.Interfaces
         IQueryable<GamePlayer> GetByGame(int gameId);
         GamePlayer? GetByGameAndUser(int gameId, string userId);
         void AddScore(int gameId, string userId, int score);
+        void RemovePlayer(int gameId, string userId);
     }
 }

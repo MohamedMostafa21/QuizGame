@@ -1,4 +1,5 @@
-﻿using QuizGame.Models;
+﻿using Microsoft.CodeAnalysis.FlowAnalysis.DataFlow;
+using QuizGame.Models;
 
 namespace QuizGame.Repositories.Interfaces
 {
@@ -9,5 +10,6 @@ namespace QuizGame.Repositories.Interfaces
         GameQuestion? GetNextPending(int gameId);
         void Activate(int id);
         void Close(int id, string winnerId, int points);
+        GameQuestion? GetWithInnerQuestion(int id);
     }
 }

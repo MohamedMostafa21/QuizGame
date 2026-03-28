@@ -1,4 +1,5 @@
-﻿using QuizGame.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using QuizGame.Data;
 using QuizGame.Models;
 using QuizGame.Repositories.Interfaces;
 
@@ -48,7 +49,13 @@ namespace QuizGame.Repositories.Implementations
 
         public GameQuestion? GetNextPending(int gameId)
         {
-            return _context.GameQuestions.FirstOrDefault(gq => gq.GameId == gameId && gq.Status == QuestionStatus.Pending);
+            return _context.GameQuestions.Include(gq => gq.Question).FirstOrDefault(gq => gq.GameId == gameId && gq.Status == QuestionStatus.Pending);
+        }
+
+        public GameQuestion? GetWithInnerQuestion(int id)
+        {
+            return _context.GameQuestions.Include(gq => gq.Question)
+                .FirstOrDefault(gq => gq.Id == id);
         }
     }
 }

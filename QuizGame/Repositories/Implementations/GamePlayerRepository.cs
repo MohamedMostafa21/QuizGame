@@ -17,7 +17,7 @@ namespace QuizGame.Repositories.Implementations
         {
             GamePlayer? player = _context.GamePlayers.FirstOrDefault(gp => gp.GameId == gameId && gp.UserId == userId);
 
-            if(player is not null)
+            if (player is not null)
                 player.Score += score;
         }
 
@@ -29,6 +29,15 @@ namespace QuizGame.Repositories.Implementations
         public GamePlayer? GetByGameAndUser(int gameId, string userId)
         {
             return _context.GamePlayers.FirstOrDefault(gp => gp.GameId == gameId && gp.UserId == userId);
+        }
+
+        public void RemovePlayer(int gameId, string userId)
+        {
+            GamePlayer? player = _context.GamePlayers
+                .FirstOrDefault(gp => gp.GameId == gameId && gp.UserId == userId);
+
+            if (player is not null)
+                _context.GamePlayers.Remove(player);
         }
     }
 }

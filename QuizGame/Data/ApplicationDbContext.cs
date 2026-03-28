@@ -28,6 +28,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
             .HasForeignKey(g => g.HostId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Entity<GamePlayer>()
+            .HasIndex(e => new { e.GameId, e.UserId })
+            .IsUnique();
+
         builder.Entity<GameQuestion>()
             .HasOne(gq => gq.Winner)
             .WithMany()

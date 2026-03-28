@@ -63,6 +63,7 @@ namespace QuizGame.Controllers
             {
                 return View(vm);
             }
+
             JoinGameResult result = _gameService.JoinGame(vm.RoomCode, _userManager.GetUserId(User));
 
             if (result == JoinGameResult.GameNotFound)
@@ -83,14 +84,30 @@ namespace QuizGame.Controllers
 
         }
 
+        public IActionResult Leave(string roomCode)
+        {
+            string userId = _userManager.GetUserId(User);
+            _gameService.LeaveGame(roomCode, userId);
+            return RedirectToAction("Index");
+        }
+
         [HttpPost]
         public IActionResult Start(JoinRoomViewModel vm)
         {
            try
             {
                 string hostId = _userManager.GetUserId(User);
+
                 _gameService.StartGame(vm, hostId);
-                return RedirectToAction("Index", "Game", new { roomCode = vm.RoomCode });
+               
+                int gameId = _gameService.GetGameIdByRoomCode(vm.RoomCode);
+                if(gameId == -1)
+                {
+                    TempData["Error"] = "Game not found. Please check the room code and try again.";
+                    return RedirectToAction("Room", new { roomCode = vm.RoomCode });
+                };
+
+                return RedirectToAction("Index", "Game", new { id = gameId });
             }
             catch (UnauthorizedAccessException ex)
             {

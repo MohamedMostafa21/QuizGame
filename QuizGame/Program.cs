@@ -35,6 +35,7 @@ builder.Services.AddScoped<IGameQuestionRepository, GameQuestionRepository>();
 builder.Services.AddScoped<IGamePlayerRepository, GamePlayerRepository>();
 builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
 builder.Services.AddScoped<IPlayerAnswerRepository, PlayerAnswerRepository>();
+builder.Services.AddScoped<IAnswerOptionRepository, AnswerOptionRepository>();
 
 
 var app = builder.Build();

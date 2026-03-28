@@ -12,5 +12,10 @@ namespace QuizGame.Repositories.Implementations
         {
             _context = context;
         }
+
+        public List<AnswerOption> GetByQuestionId(int id)
+        {
+            return _context.AnswerOptions.Where(o => o.QuestionId == id).ToList();
+        }
     }
 }
