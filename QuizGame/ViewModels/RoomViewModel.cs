@@ -4,6 +4,8 @@ namespace QuizGame.ViewModels
 {
     public class RoomViewModel
     {
+        public string HostId { get; set; }
+        public string UserId { get; set; }
         public string HostName { get; set; }
         public string RoomCode { get; set; } = string.Empty;
         public string CategoryName { get; set; }

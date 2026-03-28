@@ -1,4 +1,4 @@
-﻿@model QuizGame.ViewModels.RoomViewModel
+@model QuizGame.ViewModels.RoomViewModel
 
 @{
     ViewData["Title"] = "Room";
@@ -10,59 +10,130 @@
     <h4>RoomViewModel</h4>
     <hr />
     <dl class="row">
-        <dt class = "col-sm-2">
+        <dt class="col-sm-2">
             @Html.DisplayNameFor(model => model.HostName)
         </dt>
-        <dd class = "col-sm-10">
+        <dd class="col-sm-10">
             @Html.DisplayFor(model => model.HostName)
         </dd>
-        <dt class = "col-sm-2">
+        <dt class="col-sm-2">
             @Html.DisplayNameFor(model => model.RoomCode)
         </dt>
-        <dd class = "col-sm-10">
+        <dd class="col-sm-10">
             @Html.DisplayFor(model => model.RoomCode)
         </dd>
-        <dt class = "col-sm-2">
+        <dt class="col-sm-2">
             @Html.DisplayNameFor(model => model.CategoryName)
         </dt>
-        <dd class = "col-sm-10">
+        <dd class="col-sm-10">
             @Html.DisplayFor(model => model.CategoryName)
         </dd>
-        <dt class = "col-sm-2">
+        <dt class="col-sm-2">
             @Html.DisplayNameFor(model => model.QuestionCount)
         </dt>
-        <dd class = "col-sm-10">
+        <dd class="col-sm-10">
             @Html.DisplayFor(model => model.QuestionCount)
         </dd>
     </dl>
 </div>
-<dt class="col-sm-2">
-    Players
-</dt>
+
+<dt class="col-sm-2">Players</dt>
 <dd class="col-sm-10">
-    @if (Model.GamePlayers != null && Model.GamePlayers.Any())
-    {
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                </tr>
-            </thead>
-            <tbody>
+    <table class="table" id="playersTable" style="@(Model.GamePlayers != null && Model.GamePlayers.Any() ? "" : "display:none;")">
+        <thead>
+            <tr>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody id="playersList">
+            @if (Model.GamePlayers != null && Model.GamePlayers.Any())
+            {
                 @foreach (var player in Model.GamePlayers)
                 {
                     <tr>
                         <td>@player.User.UserName</td>
                     </tr>
                 }
-            </tbody>
-        </table>
-    }
-    else
-    {
-        <span>No players yet</span>
-    }
+            }
+        </tbody>
+    </table>
+
+    <span id="noPlayersMessage" style="@(Model.GamePlayers == null || !Model.GamePlayers.Any() ? "" : "display:none;")">
+        No players yet
+    </span>
 </dd>
-<div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="d-flex justify-content-between">
     <a asp-action="Index">Back to List</a>
+
+    @if (Model.HostId == Model.UserId)
+    {
+        <form asp-controller="Lobby" asp-action="Start" method="post">
+            <input type="hidden" name="RoomCode" value="@Model.RoomCode" />
+            <button type="submit" class="btn btn-success">Start Game</button>
+        </form>
+    }
 </div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/hubs/game")
+        .build();
+
+        connection.on("PlayerJoined", function (userName) {
+        const noPlayersMsg = document.getElementById("noPlayersMessage");
+        if (noPlayersMsg) noPlayersMsg.style.display = "none";
+
+        const playersTable = document.getElementById("playersTable");
+        if (playersTable) playersTable.style.display = "table";
+
+        const tbody = document.getElementById("playersList");
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.textContent = userName;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        });
+
+        connection.on("InitialPlayers", function (userNames) {
+        const noPlayersMsg = document.getElementById("noPlayersMessage");
+        if (noPlayersMsg)
+        noPlayersMsg.style.display = userNames && userNames.length ? "none" : "";
+
+        const playersTable = document.getElementById("playersTable");
+        if (playersTable)
+        playersTable.style.display = userNames && userNames.length ? "table" : "none";
+
+        const tbody = document.getElementById("playersList");
+        if (tbody && userNames) {
+        tbody.innerHTML = '';
+        userNames.forEach(function (name) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.textContent = name;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        });
+        }
+        });
+
+        connection.on("NavigateToGame", function (roomCode) {
+        window.location.href = `/Game/Index?roomCode=${roomCode}`;
+        });
+
+        connection.start().then(function () {
+        console.log("Connected to the Player Hub.");
+        return connection.invoke("JoinRoomGroup", "@Model.RoomCode", "@Model.UserId");
+        }).catch(function (err) {
+        console.error(err.toString());
+        });
+    </script>
+}
