@@ -1,0 +1,105 @@
+@model QuizGame.ViewModels.GameResultViewModel
+
+@{
+    ViewData["Title"] = "Game Summary";
+}
+
+<div class="text-center mb-4">
+    <h1>Game Results</h1>
+    <p class="lead">Room Code: <strong>@Model.RoomCode</strong></p>
+    <p class="text-muted">Category: @Model.CategoryName</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Final Rankings</h3>
+            </div>
+            <div class="card-body">
+                @if (Model.FinalRankings != null && Model.FinalRankings.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Player</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var player in Model.FinalRankings)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (player.Rank == 1)
+                                            {
+                                                <span class="badge bg-warning text-dark">🥇 @player.Rank</span>
+                                            }
+                                            else if (player.Rank == 2)
+                                            {
+                                                <span class="badge bg-secondary">🥈 @player.Rank</span>
+                                            }
+                                            else if (player.Rank == 3)
+                                            {
+                                                <span class="badge bg-brown">🥉 @player.Rank</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@player.Rank</span>
+                                            }
+                                        </td>
+                                        <td><strong>@player.UserName</strong></td>
+                                        <td><span class="text-success">@player.Score</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No player rankings available.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h3 class="mb-0">Question Breakdown</h3>
+            </div>
+            <div class="card-body">
+                @if (Model.QuestionResults != null && Model.QuestionResults.Any())
+                {
+                    <div class="list-group">
+                        @foreach (var question in Model.QuestionResults.OrderBy(q => q.Order))
+                        {
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Q@(question.Order): @question.QuestionText</h6>
+                                    <small>@question.PointsAwarded pts</small>
+                                </div>
+                                <p class="mb-1">
+                                    <span class="text-muted">Winner:</span> 
+                                    <strong>@(question.WinnerName ?? "No winner")</strong>
+                                </p>
+                                <small class="text-success">Correct: @question.CorrectAnswer</small>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No question results available.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <a class="btn btn-primary btn-lg" asp-controller="Home" asp-action="Index">Back to Home</a>
+</div>

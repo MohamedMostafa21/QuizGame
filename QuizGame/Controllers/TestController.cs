@@ -32,6 +32,9 @@ namespace QuizGame.Controllers
 
         private readonly IGameRepository _gameRepository;
         private readonly IGamePlayerRepository _gamePlayerRepository;
+        private readonly IGameQuestionRepository _gameQuestionRepository;
+        private readonly IQuestionRepository _questionRepository;
+        private readonly IPlayerAnswerRepository _playerAnswerRepository;
 
         private readonly UserManager<User> _userManager;
 
@@ -47,6 +50,9 @@ namespace QuizGame.Controllers
 
             IGameRepository gameRepository,
             IGamePlayerRepository gamePlayerRepository,
+            IGameQuestionRepository gameQuestionRepository,
+            IQuestionRepository questionRepository,
+            IPlayerAnswerRepository playerAnswerRepository,
 
             UserManager<User> userManager)
 
@@ -58,8 +64,10 @@ namespace QuizGame.Controllers
 
             _chatMessageRepository = chatMessageRepository;
             _gameRepository = gameRepository;
-
             _gamePlayerRepository = gamePlayerRepository;
+            _gameQuestionRepository = gameQuestionRepository;
+            _questionRepository = questionRepository;
+            _playerAnswerRepository = playerAnswerRepository;
 
             _userManager = userManager;
 
@@ -108,6 +116,14 @@ namespace QuizGame.Controllers
                 },
                 new TestInfo
                 {
+                    Name = "Game - Summary View",
+                    Description = "Shows game summary page for a specific room code (requires roomCode parameter)",
+                    Url = "/test/game/summary?roomCode=XXXXX",
+                    Method = "GET",
+                    RequiresAuth = false
+                },
+                new TestInfo
+                {
                     Name = "Leaderboard - Current Standings",
                     Description = "Shows current standings for a room (requires roomCode parameter)",
                     Url = "/test/leaderboard/standings?roomCode=XXXXX",
@@ -135,6 +151,14 @@ namespace QuizGame.Controllers
                     Name = "Clear Test Data",
                     Description = "Removes test chat messages for game ID 1",
                     Url = "/test/clear-data",
+                    Method = "POST",
+                    RequiresAuth = true
+                },
+                new TestInfo
+                {
+                    Name = "Create Full Scenario",
+                    Description = "Creates a complete game with players, questions, answers, and chat messages",
+                    Url = "/test/create-full-scenario",
                     Method = "POST",
                     RequiresAuth = true
                 }
@@ -472,6 +496,58 @@ namespace QuizGame.Controllers
 
         #endregion
 
+        #region Game Controller Tests
+
+        /// <summary>
+        /// Test: Get game summary view
+        /// GET /test/game/summary?roomCode=XXXXX
+        /// </summary>
+        [HttpGet]
+        [Route("test/game/summary")]
+        public async Task<IActionResult> GetGameSummary(string roomCode)
+        {
+            if (string.IsNullOrWhiteSpace(roomCode))
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "roomCode parameter is required",
+                    data = (object?)null
+                });
+            }
+
+            try
+            {
+                var results = await _leaderboardService.GetGameResultsAsync(roomCode);
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Retrieved summary for room {results.RoomCode}",
+                    data = new
+                    {
+                        results.RoomCode,
+                        results.CategoryName,
+                        TotalPlayers = results.FinalRankings.Count,
+                        TotalQuestions = results.QuestionResults.Count,
+                        FinalRankings = results.FinalRankings,
+                        QuestionResults = results.QuestionResults
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = $"Error: {ex.Message}",
+                    data = (object?)null
+                });
+            }
+        }
+
+        #endregion
+
         #region Data Setup Tests
 
         /// <summary>
@@ -766,6 +842,180 @@ namespace QuizGame.Controllers
 
             }
 
+        }
+
+        /// <summary>
+        /// Test: Create full game scenario with players, questions, answers, and chat
+        /// POST /test/create-full-scenario
+        /// </summary>
+        [HttpPost]
+        [Route("test/create-full-scenario")]
+        public async Task<IActionResult> CreateFullScenario()
+        {
+            try
+            {
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(currentUserId))
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "User must be logged in.",
+                        data = (object?)null
+                    });
+                }
+
+                var currentUser = await _userManager.FindByIdAsync(currentUserId);
+                if (currentUser == null)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Current user not found.",
+                        data = (object?)null
+                    });
+                }
+
+                var allUsers = await _userManager.Users.Where(u => u.Id != currentUserId).ToListAsync();
+                if (allUsers.Count < 2)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Need at least 2 additional users. Please register more users.",
+                        data = (object?)null
+                    });
+                }
+
+                var category = _questionRepository.GetAll()
+                    .Include(q => q.Category)
+                    .FirstOrDefault()?.Category;
+
+                var roomCode = Guid.NewGuid().ToString("N")[..6].ToUpper();
+                var game = new Game
+                {
+                    RoomCode = roomCode,
+                    HostId = currentUserId,
+                    CategoryId = category?.Id,
+                    QuestionCount = 3,
+                    Status = GameStatus.Finished
+                };
+                _gameRepository.Add(game);
+                _gameRepository.Save();
+
+                var users = new List<User> { currentUser };
+                users.AddRange(allUsers.Take(2));
+
+                var random = new Random();
+                var playerData = new List<object>();
+                var totalScore1 = 0;
+
+                for (int i = 0; i < users.Count; i++)
+                {
+                    var score = (i == 0) ? 350 : random.Next(100, 300);
+                    if (i == 0) totalScore1 = score;
+
+                    var gamePlayer = new GamePlayer
+                    {
+                        GameId = game.Id,
+                        UserId = users[i].Id,
+                        Score = score
+                    };
+                    _gamePlayerRepository.Add(gamePlayer);
+                    playerData.Add(new { UserName = users[i].UserName, Score = score });
+                }
+                _gamePlayerRepository.Save();
+
+                var questions = _questionRepository.GetAll()
+                    .Include(q => q.AnswerOptions)
+                    .Take(3)
+                    .ToList();
+                var questionResults = new List<object>();
+                var answerIndex = 0;
+
+                foreach (var q in questions)
+                {
+                    var gameQuestion = new GameQuestion
+                    {
+                        GameId = game.Id,
+                        QuestionId = q.Id,
+                        Order = questions.IndexOf(q) + 1,
+                        Status = QuestionStatus.Closed,
+                        WinnerId = currentUserId,
+                        PointsAwarded = q.Points
+                    };
+                    _gameQuestionRepository.Add(gameQuestion);
+                    _gameQuestionRepository.Save();
+
+                    var correctAnswer = q.AnswerOptions.FirstOrDefault(a => a.IsCorrect);
+
+                    foreach (var user in users)
+                    {
+                        var isWinner = user.Id == currentUserId;
+                        var answerOptionId = isWinner 
+                            ? correctAnswer?.Id ?? 1 
+                            : q.AnswerOptions.ElementAt(random.Next(q.AnswerOptions.Count)).Id;
+
+                        var playerAnswer = new PlayerAnswer
+                        {
+                            GameQuestionId = gameQuestion.Id,
+                            UserId = user.Id,
+                            AnswerOptionId = answerOptionId,
+                            SubmittedAt = DateTime.UtcNow.AddSeconds(random.Next(5, 15)),
+                            IsWinningAnswer = isWinner
+                        };
+                        _playerAnswerRepository.Add(playerAnswer);
+                    }
+                    _playerAnswerRepository.Save();
+
+                    questionResults.Add(new
+                    {
+                        Question = q.Text,
+                        Winner = currentUser.UserName,
+                        Points = q.Points,
+                        CorrectAnswer = correctAnswer?.Text
+                    });
+                }
+
+                var chatMessages = new[] { "Good game!", "That was fun!", "Nice playing with you!" };
+                foreach (var msg in chatMessages)
+                {
+                    var user = users[random.Next(users.Count)];
+                    _chatMessageRepository.Add(new ChatMessage
+                    {
+                        GameId = game.Id,
+                        UserId = user.Id,
+                        Text = msg,
+                        SentAt = DateTime.UtcNow
+                    });
+                }
+                _chatMessageRepository.Save();
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Full scenario created for room {roomCode}",
+                    data = new
+                    {
+                        GameId = game.Id,
+                        RoomCode = roomCode,
+                        Status = game.Status.ToString(),
+                        Category = category?.Name ?? "All",
+                        Players = playerData,
+                        Questions = questionResults,
+                        ChatMessages = chatMessages.Length
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = $"Error: {ex.Message}",
+                    data = (object?)null
+                });
+            }
         }
 
 

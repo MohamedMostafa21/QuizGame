@@ -110,47 +110,45 @@ namespace QuizGame.Services
 
 
 
-            var gameQuestions = _gameQuestionRepository.GetAll()
-                .Where(gq => gq.GameId == game.Id)
-                .OrderBy(gq => gq.Order)
-                .ToList();
-
-
-
-
             var questionResults = new List<QuestionResultViewModel>();
 
-            foreach (var gq in gameQuestions)
+            try
             {
+                var gameQuestions = _gameQuestionRepository.GetAll()
+                    .Include(gq => gq.Question)
+                    .ThenInclude(q => q!.AnswerOptions)
+                    .Where(gq => gq.GameId == game.Id)
+                    .OrderBy(gq => gq.Order)
+                    .ToList();
 
-                var question = _gameQuestionRepository.Get(gq.Id)?.Question;
-
-                if (question == null) continue;
-
-                string? winnerName = null;
-
-                if (gq.WinnerId != null && users.TryGetValue(gq.WinnerId, out var winnerUser))
+                foreach (var gq in gameQuestions)
                 {
-                    winnerName = winnerUser.UserName;
+                    var question = gq.Question;
+                    if (question == null) continue;
+
+                    string? winnerName = null;
+                    if (gq.WinnerId != null && users.TryGetValue(gq.WinnerId, out var winnerUser))
+                    {
+                        winnerName = winnerUser.UserName;
+                    }
+
+                    var answerOptions = question.AnswerOptions ?? new List<AnswerOption>();
+                    var correctAnswer = answerOptions.FirstOrDefault(ao => ao.IsCorrect)?.Text ?? "Unknown";
+
+                    questionResults.Add(new QuestionResultViewModel
+                    {
+                        QuestionText = question.Text,
+                        Order = gq.Order,
+                        WinnerName = winnerName,
+                        PointsAwarded = gq.PointsAwarded,
+                        CorrectAnswer = correctAnswer
+                    });
                 }
-
-
-
-                var correctAnswer = question.AnswerOptions.FirstOrDefault(ao => ao.IsCorrect)?.Text ?? "Unknown";
-
-
-                questionResults.Add(new QuestionResultViewModel
-                {
-                    QuestionText = question.Text,
-                    Order = gq.Order,
-                    WinnerName = winnerName,
-                    PointsAwarded = gq.PointsAwarded,
-                    CorrectAnswer = correctAnswer
-                });
-
             }
-
-
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading questions: {ex.Message}");
+            }
 
             return new GameResultViewModel
             {
