@@ -1,0 +1,75 @@
+@using Microsoft.AspNetCore.Identity
+@model IEnumerable<QuizGame.Models.User>
+
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to QuizGame</h1>
+    <p class="lead">Test your knowledge against other players in real-time trivia battles!</p>
+
+    <div class="mt-4">
+        <a class="btn btn-primary btn-lg me-2" asp-controller="Lobby" asp-action="Create">Create Game</a>
+        <a class="btn btn-secondary btn-lg" asp-controller="Lobby" asp-action="Join">Join Game</a>
+    </div>
+</div>
+
+<div class="mt-5">
+    <h2>Global Leaderboard</h2>
+    <p class="text-muted">Top players by total accumulated score</p>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Total Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Select((user, index) => new { user, index = index + 1 }))
+                    {
+                        <tr>
+                            <td>
+                                @if (user.index == 1)
+                                {
+                                    <span class="badge bg-warning text-dark">🥇 @user.index</span>
+                                }
+                                else if (user.index == 2)
+                                {
+                                    <span class="badge bg-secondary">🥈 @user.index</span>
+                                }
+                                else if (user.index == 3)
+                                {
+                                    <span class="badge bg-brown">🥉 @user.index</span>
+                                }
+                                else
+                                {
+                                    <span>@user.index</span>
+                                }
+                            </td>
+                            <td>@user.user.UserName</td>
+                            <td><strong>@user.user.TotalScore</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            No players yet. Be the first to play and top the leaderboard!
+        </div>
+    }
+</div>
+
+<div class="mt-4 text-center">
+    <p class="text-muted">
+        <small>Score accumulates across all completed games. Play more to climb the ranks!</small>
+    </p>
+</div>
