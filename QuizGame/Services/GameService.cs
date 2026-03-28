@@ -1,9 +1,11 @@
-﻿using System;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
+using QuizGame.Hubs;
 using QuizGame.Models;
 using QuizGame.Repositories.Interfaces;
 using QuizGame.ViewModels;
+using System;
 using System.Linq;
-using Microsoft.AspNetCore.Identity;
 
 namespace QuizGame.Services
 {
@@ -15,6 +17,7 @@ namespace QuizGame.Services
         private readonly IGameQuestionRepository _gameQuestionRepository;
         private readonly IGamePlayerRepository _gamePlayerRepository;
         private readonly UserManager<User> _userManager;
+        private readonly IHubContext<GameHub> _gameHubContext;
 
         public GameService(
             ICategoryRepository categoryRepository,
@@ -22,7 +25,9 @@ namespace QuizGame.Services
             IQuestionRepository questionRepository,
             IGameQuestionRepository gameQuestionRepository,
             IGamePlayerRepository gamePlayerRepository,
-            UserManager<User> userManager)
+            UserManager<User> userManager,
+            IHubContext<GameHub> gameHubContext)
+
         {
             _categoryRepository = categoryRepository;
             _gameRepository = gameRepository;
@@ -30,6 +35,7 @@ namespace QuizGame.Services
             _gameQuestionRepository = gameQuestionRepository;
             _gamePlayerRepository = gamePlayerRepository;
             _userManager = userManager;
+            _gameHubContext = gameHubContext;
         }
 
         public CreateGameViewModel GetCreateGameViewModel()
@@ -111,6 +117,7 @@ namespace QuizGame.Services
                 UserId = hostId,
                 Score = 0
             };
+            
 
             _gamePlayerRepository.Add(hostPlayer);
             _gamePlayerRepository.Save();
@@ -125,7 +132,7 @@ namespace QuizGame.Services
                 .ToArray());
         }
 
-        public RoomViewModel GetRoomViewModel(string roomCode)
+        public RoomViewModel GetRoomViewModel(string roomCode, string userId)
         {
             Game? game = _gameRepository.GetByRoomCode(roomCode);
 
@@ -151,12 +158,61 @@ namespace QuizGame.Services
 
             return new RoomViewModel
             {
+                HostId = game.HostId,
+                UserId = userId,
                 HostName = hostUser?.UserName,
                 RoomCode = game.RoomCode,
                 CategoryName = category?.Name ?? "All Categories",
                 QuestionCount = game.QuestionCount,
                 GamePlayers = players,
             };
+        }
+
+        public JoinGameResult JoinGame(string roomCode, string userId)
+        {
+            if(!_gameRepository.RoomCodeExists(roomCode))
+                return JoinGameResult.GameNotFound;
+
+            Game? game = _gameRepository.GetByRoomCode(roomCode);
+            if(game.Status != GameStatus.Waiting)
+                return JoinGameResult.GameInProgress;
+
+            GamePlayer newPlayer = new GamePlayer
+            {
+                GameId = game.Id,
+                UserId = userId,
+                Score = 0
+            };
+            _gamePlayerRepository.Add(newPlayer);
+            _gamePlayerRepository.Save();
+            _gameHubContext.Clients.Group(game.RoomCode).SendAsync("PlayerJoined", _userManager.FindByIdAsync(userId).GetAwaiter().GetResult()?.UserName);
+            return JoinGameResult.Success;
+        }
+
+        public void StartGame(JoinRoomViewModel vm, string requestingUserId)
+        {
+            Game? game = _gameRepository.GetByRoomCode(vm.RoomCode);
+
+            if (game == null)
+                throw new Exception("Game not found.");
+
+            if (game.HostId != requestingUserId)
+                throw new UnauthorizedAccessException("Only the host can start the game.");
+
+            if (game.Status != GameStatus.Waiting)
+                throw new Exception("Game has already started or finished.");
+
+            game.Status = GameStatus.InProgress;
+            _gameRepository.Update(game);
+
+            GameQuestion? firstQuestion = _gameQuestionRepository.GetNextPending(game.Id);
+
+            if (firstQuestion == null)
+                throw new Exception("No questions found for this game.");
+
+            _gameQuestionRepository.Activate(firstQuestion.Id);
+
+            _gameHubContext.Clients.Group(vm.RoomCode).SendAsync("NavigateToGame", vm.RoomCode);
         }
     }
 }

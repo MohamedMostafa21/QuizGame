@@ -57,6 +57,7 @@ app.MapControllerRoute(
 
 app.MapHub<QuizGame.Hubs.GameHub>("/hubs/game");
 
+
 using (var scope = app.Services.CreateScope())
 {
     await SeedData.InitializeAsync(scope.ServiceProvider);
