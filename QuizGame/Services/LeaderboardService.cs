@@ -53,10 +53,40 @@ namespace QuizGame.Services
             {
                 throw new ArgumentException("Number of users must be positive");
             }
+
+            await SyncTotalScoresFromFinishedGamesAsync();
+
             return await _userManager.Users
                 .OrderByDescending(u => u.TotalScore)
                 .Take(n)
                 .ToListAsync();
+        }
+
+        private async Task SyncTotalScoresFromFinishedGamesAsync()
+        {
+            var finishedGameIds = await _gameRepository.GetAll()
+                .Where(g => g.Status == GameStatus.Finished)
+                .Select(g => g.Id)
+                .ToListAsync();
+
+            var scoreByUser = finishedGameIds.Count == 0
+                ? new Dictionary<string, int>()
+                : await _gamePlayerRepository.GetAll()
+                    .Where(gp => finishedGameIds.Contains(gp.GameId))
+                    .GroupBy(gp => gp.UserId)
+                    .Select(g => new { UserId = g.Key, TotalScore = g.Sum(x => x.Score) })
+                    .ToDictionaryAsync(x => x.UserId, x => x.TotalScore);
+
+            var users = await _userManager.Users.ToListAsync();
+            foreach (var user in users)
+            {
+                var expectedScore = scoreByUser.TryGetValue(user.Id, out var score) ? score : 0;
+                if (user.TotalScore != expectedScore)
+                {
+                    user.TotalScore = expectedScore;
+                    await _userManager.UpdateAsync(user);
+                }
+            }
         }
 
 

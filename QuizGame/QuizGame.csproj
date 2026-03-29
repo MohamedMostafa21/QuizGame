@@ -19,9 +19,4 @@
     <PackageReference Include="UmbracoCms.Core" Version="8.18.15" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Services\Interfaces\" />
-    <Folder Include="Services\Implementations\" />
-  </ItemGroup>
-
 </Project>

@@ -1,0 +1,81 @@
+@model QuizGame.ViewModels.GameResultViewModel
+@{
+    ViewData["Title"] = "Game Summary";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <h2>Game Summary</h2>
+    <p class="text-muted mb-1">Room: @Model.RoomCode</p>
+    <p class="text-muted">Category: @Model.CategoryName</p>
+
+    <div class="card mb-4">
+        <div class="card-header">Final Rankings</div>
+        <div class="card-body p-0">
+            @if (Model.FinalRankings.Any())
+            {
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var player in Model.FinalRankings)
+                        {
+                            <tr>
+                                <td>@player.Rank</td>
+                                <td>@player.UserName</td>
+                                <td>@player.Score</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="p-3">No ranking data available.</div>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Question Results</div>
+        <div class="card-body p-0">
+            @if (Model.QuestionResults.Any())
+            {
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question</th>
+                            <th>Winner</th>
+                            <th>Points</th>
+                            <th>Correct Answer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var question in Model.QuestionResults)
+                        {
+                            <tr>
+                                <td>@question.Order</td>
+                                <td>@question.QuestionText</td>
+                                <td>@(question.WinnerName ?? "No winner")</td>
+                                <td>@question.PointsAwarded</td>
+                                <td>@question.CorrectAnswer</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="p-3">No question result data available.</div>
+            }
+        </div>
+    </div>
+
+    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Back to Home</a>
+</div>

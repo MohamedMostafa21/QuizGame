@@ -107,7 +107,7 @@ namespace QuizGame.Controllers
                     return RedirectToAction("Room", new { roomCode = vm.RoomCode });
                 };
 
-                return RedirectToAction("Index", "Game", new { id = gameId });
+                return RedirectToAction("Play", "Game", new { roomCode = vm.RoomCode });
             }
             catch (UnauthorizedAccessException ex)
             {

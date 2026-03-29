@@ -1,0 +1,274 @@
+﻿@model QuizGame.ViewModels.GamePlayViewModel
+@{
+    ViewData["Title"] = "Game";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Pass these values to JavaScript -->
+<input type="hidden" id="roomCode" value="@Model.RoomCode" />
+<input type="hidden" id="gameId" value="@Model.GameId" />
+
+<div style="display:flex; gap:16px; height:90vh; padding:16px;">
+
+    <!-- LEFT: Question + Answers -->
+    <div id="questionPanel" style="flex:2; display:flex; flex-direction:column; gap:12px;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span id="questionCounter" style="color:#888;">
+                @(Model.ActiveQuestion != null
+                    ? $"Question {Model.ActiveQuestion.Order} of {Model.ActiveQuestion.TotalQuestions}"
+                    : "Waiting for question...")
+            </span>
+            <span id="pointsBadge" style="background:#2E75B6; color:white; padding:4px 12px; border-radius:12px;">
+                @(Model.ActiveQuestion?.Points ?? 0) pts
+            </span>
+        </div>
+
+        <!-- Timer bar -->
+        <div style="background:#eee; border-radius:4px; height:8px;">
+            <div id="timerBar" style="height:8px; background:#2E75B6; border-radius:4px; transition:width 1s linear; width:100%;"></div>
+        </div>
+        <div style="text-align:right;">
+            <span id="timerText" style="font-weight:bold;">@(Model.ActiveQuestion?.TimeLimitSeconds ?? 0)s</span>
+        </div>
+
+        <!-- Question text -->
+        <div id="questionText" style="font-size:1.4rem; font-weight:bold; padding:16px; background:#f5f7ff; border-radius:8px; min-height:80px;">
+            @(Model.ActiveQuestion?.Text ?? "")
+        </div>
+
+        <!-- Answer buttons -->
+        <div id="answerButtons" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            @if (Model.ActiveQuestion != null)
+            {
+                foreach (var opt in Model.ActiveQuestion.Options)
+                {
+                    <button class="answer-btn"
+                            data-id="@opt.Id"
+                            onclick="submitAnswer(@opt.Id)"
+                            style="padding:16px; font-size:1rem; border:2px solid #2E75B6;
+                                   border-radius:8px; background:white; cursor:pointer;">
+                        @opt.Text
+                    </button>
+                }
+            }
+        </div>
+
+        <!-- Round result message (hidden until a round ends) -->
+        <div id="roundResult" style="display:none; padding:16px; border-radius:8px; text-align:center; font-size:1.1rem;"></div>
+
+    </div>
+
+    <!-- MIDDLE: Scoreboard -->
+    <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+        <h3 style="margin:0;">Scoreboard</h3>
+        <div id="scoreboard" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto;">
+            <!-- Filled by SignalR -->
+        </div>
+    </div>
+
+    <!-- RIGHT: Chat -->
+    <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+        <h3 style="margin:0;">Chat</h3>
+        <div id="chatMessages" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px; background:#f9f9f9; padding:8px; border-radius:8px;">
+            <!-- Messages appear here -->
+        </div>
+        <div style="display:flex; gap:6px;">
+            <input id="chatInput" type="text" placeholder="Say something..."
+                   style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px;"
+                   onkeydown="if(event.key==='Enter') sendChat()" />
+            <button onclick="sendChat()" style="padding:8px 14px; background:#2E75B6; color:white; border:none; border-radius:6px; cursor:pointer;">
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const roomCode = document.getElementById('roomCode').value;
+        let timerInterval = null;
+        let answeredThisRound = false;
+
+        // ── CONNECT TO HUB ──────────────────────────────────────────────────
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/game")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.start().then(() => {
+            connection.invoke("JoinGameRoom", roomCode);
+        });
+
+        // ── SUBMIT ANSWER ───────────────────────────────────────────────────
+        function submitAnswer(optionId) {
+            if (answeredThisRound) return; // prevent double submission
+            answeredThisRound = true;
+
+            // Disable all buttons immediately
+            document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+
+            const gameQuestionId = parseInt(document.querySelector('.answer-btn').dataset.gqid);
+            connection.invoke("SubmitAnswer", roomCode, gameQuestionId, optionId);
+        }
+
+        // ── SEND CHAT ───────────────────────────────────────────────────────
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            connection.invoke("SendChatMessage", roomCode, text);
+            input.value = '';
+        }
+
+        // ── TIMER ───────────────────────────────────────────────────────────
+        function startTimer(seconds) {
+            clearInterval(timerInterval);
+            let remaining = seconds;
+            const bar = document.getElementById('timerBar');
+            const txt = document.getElementById('timerText');
+            bar.style.width = '100%';
+            txt.textContent = remaining + 's';
+
+            timerInterval = setInterval(() => {
+                remaining--;
+                const pct = (remaining / seconds) * 100;
+                bar.style.width = pct + '%';
+                bar.style.background = remaining <= 5 ? '#e74c3c' : '#2E75B6';
+                txt.textContent = remaining + 's';
+                if (remaining <= 0) clearInterval(timerInterval);
+            }, 1000);
+        }
+
+        // ── RENDER QUESTION ─────────────────────────────────────────────────
+        function renderQuestion(q) {
+            answeredThisRound = false;
+
+            document.getElementById('questionCounter').textContent =
+                `Question ${q.order} of ${q.totalQuestions}`;
+            document.getElementById('pointsBadge').textContent = `${q.points} pts`;
+            document.getElementById('questionText').textContent = q.text;
+            document.getElementById('roundResult').style.display = 'none';
+
+            const container = document.getElementById('answerButtons');
+            container.innerHTML = '';
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'answer-btn';
+                btn.dataset.id = opt.id;
+                btn.dataset.gqid = q.gameQuestionId;
+                btn.textContent = opt.text;
+                btn.onclick = () => submitAnswer(opt.id);
+                btn.style.cssText = 'padding:16px; font-size:1rem; border:2px solid #2E75B6; border-radius:8px; background:white; cursor:pointer;';
+                container.appendChild(btn);
+            });
+
+            startTimer(q.timeLimitSeconds);
+        }
+
+        // ── SHOW ROUND END RESULT ───────────────────────────────────────────
+        function showRoundResult(data, timedOut) {
+            clearInterval(timerInterval);
+
+            // Highlight correct answer
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.disabled = true;
+                if (parseInt(btn.dataset.id) === data.correctAnswerOptionId) {
+                    btn.style.background = '#d4edda';
+                    btn.style.borderColor = '#28a745';
+                }
+            });
+
+            const resultDiv = document.getElementById('roundResult');
+            resultDiv.style.display = 'block';
+
+            if (timedOut) {
+                resultDiv.style.background = '#fff3cd';
+                resultDiv.textContent = "Time's up! Nobody answered correctly.";
+            } else {
+                resultDiv.style.background = '#d4edda';
+                resultDiv.textContent = `🏆 ${data.winnerUserName} got it first! +${data.pointsAwarded} pts`;
+            }
+
+            updateScoreboard(data.scoreboard);
+        }
+
+        // ── UPDATE SCOREBOARD ───────────────────────────────────────────────
+        function updateScoreboard(scores) {
+            const sb = document.getElementById('scoreboard');
+            sb.innerHTML = '';
+            scores.forEach((p, i) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex; justify-content:space-between; padding:8px 12px; background:white; border-radius:6px; border-left:4px solid ' + (i === 0 ? '#f0b429' : '#ddd');
+                row.innerHTML = `<span>${i + 1}. ${p.userName}</span><strong>${p.score}</strong>`;
+                sb.appendChild(row);
+            });
+        }
+
+        // ── APPEND CHAT MESSAGE ─────────────────────────────────────────────
+        function appendChat(msg) {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:4px 8px; background:white; border-radius:6px;';
+            div.innerHTML = `<strong>${msg.userName}</strong> <span style="color:#888; font-size:0.8rem;">${msg.sentAt}</span><br>${msg.text}`;
+            const box = document.getElementById('chatMessages');
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // ── SIGNALR EVENTS ──────────────────────────────────────────────────
+
+        // Next question (from timer service or after a winner + delay)
+        connection.on("NextQuestion", q => renderQuestion(q));
+
+        // Someone won this round
+        connection.on("RoundWon", data => showRoundResult(data, false));
+
+        // Time ran out - nobody answered
+        connection.on("RoundTimedOut", data => showRoundResult(data, true));
+
+        // Your answer was rejected (already answered, round closed, etc.)
+        connection.on("AnswerRejected", msg => {
+            alert(msg); // simple for now - improve UX later
+            answeredThisRound = false;
+            document.querySelectorAll('.answer-btn').forEach(b => b.disabled = false);
+        });
+
+        // Wrong answer but wasn't the first correct
+        connection.on("AnswerResult", data => {
+            if (!data.isCorrect) {
+                document.querySelectorAll('.answer-btn').forEach(btn => {
+                    if (parseInt(btn.dataset.id) === /* the one they clicked */ -1) {
+                        btn.style.background = '#f8d7da';
+                    }
+                });
+            }
+        });
+
+        // Game finished - go to summary
+        connection.on("GameOver", () => {
+            setTimeout(() => {
+                window.location.href = `/Game/Summary?roomCode=${encodeURIComponent(roomCode)}`;
+            }, 2000);
+        });
+
+        // Chat message received
+        connection.on("ChatMessageReceived", msg => appendChat(msg));
+
+        // Someone connected/disconnected
+        connection.on("PlayerConnected", name => appendChat({ userName: "System", text: `${name} joined`, sentAt: "" }));
+
+        // ── INITIAL QUESTION (if page loaded mid-game) ──────────────────────
+        // If the controller passed an active question, start the timer for it
+        @if (Model.ActiveQuestion != null)
+        {
+            <text>
+                // Set the gqid on existing buttons
+                document.querySelectorAll('.answer-btn').forEach(btn => {
+                    btn.dataset.gqid = '@Model.ActiveQuestion.GameQuestionId';
+                });
+                startTimer(@Model.ActiveQuestion.TimeLimitSeconds);
+            </text>
+        }
+    </script>
+}

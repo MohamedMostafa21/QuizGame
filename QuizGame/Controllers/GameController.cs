@@ -1,53 +1,89 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using QuizGame.Models;
-using QuizGame.Repositories.Implementations;
 using QuizGame.Repositories.Interfaces;
+using QuizGame.Services;
 using QuizGame.ViewModels;
-using System.Security.Claims;
 
-namespace QuizGame.Controllers
+namespace QuizGame.Controllers;
+
+[Authorize]
+public class GameController : Controller
 {
-    public class GameController : Controller
+    private readonly IGameRepository _games;
+    private readonly IGamePlayerRepository _gamePlayers;
+    private readonly IGameQuestionRepository _gameQuestions;
+    private readonly LeaderboardService _leaderboardService;
+    private readonly UserManager<User> _userManager;
+
+    public GameController(
+        IGameRepository games,
+        IGamePlayerRepository gamePlayers,
+        IGameQuestionRepository gameQuestions,
+        LeaderboardService leaderboardService,
+        UserManager<User> userManager)
     {
-        private readonly IGameQuestionRepository _gameQuestionRepo;
-        private readonly IGamePlayerRepository _gamePlayerRepo;
-        private readonly IAnswerOptionRepository _answerOptionRepo;
+        _games = games;
+        _gamePlayers = gamePlayers;
+        _gameQuestions = gameQuestions;
+        _leaderboardService = leaderboardService;
+        _userManager = userManager;
+    }
 
-        public GameController(IGameQuestionRepository gameQuestionRepository, IGamePlayerRepository gamePlayerRepository, IAnswerOptionRepository answerOptionRepository)
+    public async Task<IActionResult> Play(string roomCode)
+    {
+        var userId = _userManager.GetUserId(User)!;
+
+        var game = await _games.GetByRoomCodeAsync(roomCode);
+
+        if (game == null)
+            return NotFound();
+
+        if (game.Status == GameStatus.Waiting)
+            return RedirectToAction("Room", "Lobby", new { roomCode });
+
+        if (game.Status == GameStatus.Finished)
+            return RedirectToAction("Summary", new { roomCode });
+
+        if (!await _gamePlayers.IsUserInGameAsync(game.Id, userId))
+            return RedirectToAction("Join", "Lobby");
+
+        var activeQuestion = await _gameQuestions.GetActiveAsync(game.Id);
+
+        var vm = new GamePlayViewModel
         {
-            _gameQuestionRepo = gameQuestionRepository;
-            _gamePlayerRepo = gamePlayerRepository;
-            _answerOptionRepo = answerOptionRepository;
-        }
+            RoomCode = roomCode,
+            GameId = game.Id,
+            ActiveQuestion = activeQuestion == null ? null : new ActiveQuestionViewModel
+            {
+                GameQuestionId = activeQuestion.Id,
+                Order = activeQuestion.Order,
+                TotalQuestions = game.QuestionCount,
+                Text = activeQuestion.Question.Text,
+                Points = activeQuestion.Question.Points,
+                TimeLimitSeconds = activeQuestion.Question.TimeLimitSeconds,
+                Options = activeQuestion.Question.AnswerOptions
+                    .Select(o => new AnswerOptionViewModel
+                    {
+                        Id = o.Id,
+                        Text = o.Text
+                    }).ToList()
+            }
+        };
 
-        [HttpGet]
-        public IActionResult Index(string roomCode)
-        {
-            //GameQuestion? question = _gameQuestionRepo.GetNextPending(id);
+        return View(vm);
+    }
 
-            //if (question is null)
-            //{
-            //    return RedirectToAction("GameSummary");
-            //}
+    public async Task<IActionResult> Summary(string roomCode)
+    {
+        var game = await _games.GetByRoomCodeAsync(roomCode);
+        if (game == null) return NotFound();
 
-            //_gameQuestionRepo.Activate(question.Id);
+        if (game.Status != GameStatus.Finished)
+            return RedirectToAction(nameof(Play), new { roomCode });
 
-            //GameViewModel vm = new()
-            //{
-            //    Question = question,
-            //    Player = _gamePlayerRepo
-            //    .GetByGameAndUser(id, User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
-            //    Options = _answerOptionRepo.GetByQuestionId(question.Id)
-            //};
-
-            //return View("Index", vm);
-            return View();
-        }
-
-        [HttpPost]
-        public IActionResult Index()
-        {
-            return View();
-        }
+        var vm = await _leaderboardService.GetGameResultsAsync(roomCode);
+        return View(vm);
     }
 }

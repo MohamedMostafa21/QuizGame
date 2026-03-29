@@ -1,10 +1,13 @@
 ﻿using QuizGame.Models;
-using System.Collections.Generic;
 
-namespace QuizGame.Repositories.Interfaces
+namespace QuizGame.Repositories.Interfaces;
+
+public interface IChatMessageRepository : IRepository<ChatMessage>
 {
-    public interface IChatMessageRepository : IRepository<ChatMessage>
-    {
-        IEnumerable<ChatMessage> GetByGame(int gameId);
-    }
+    // Sync
+    IEnumerable<ChatMessage> GetByGame(int gameId);
+
+    // Async
+    Task AddAsync(ChatMessage message);
+    Task<List<ChatMessage>> GetByGameAsync(int gameId);
 }
