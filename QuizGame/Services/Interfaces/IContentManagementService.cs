@@ -60,6 +60,7 @@ public class CategoryQuestionCountResult
 {
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
     public int QuestionCount { get; set; }
 }
 
@@ -75,8 +76,8 @@ public class CategoryQuestionListItemResult
 public interface IContentManagementService
 {
     List<Category> GetCategories();
-    CreateCategoryResult CreateCategory(string name);
-    ContentManagementActionResult UpdateCategory(int categoryId, string name);
+    CreateCategoryResult CreateCategory(string name, string description);
+    ContentManagementActionResult UpdateCategory(int categoryId, string name, string description);
     ContentManagementActionResult DeleteCategory(int categoryId);
     CreateQuestionResult CreateQuestion(CreateQuestionRequest request);
     QuestionEditDetailsResult GetQuestionForEdit(int questionId);

@@ -34,7 +34,7 @@ public class ContentManagementService : IContentManagementService
             .ToList();
     }
 
-    public CreateCategoryResult CreateCategory(string name)
+    public CreateCategoryResult CreateCategory(string name, string description)
     {
         var nameValidationError = ValidateCategoryName(name, null);
         if (!string.IsNullOrWhiteSpace(nameValidationError))
@@ -46,11 +46,23 @@ public class ContentManagementService : IContentManagementService
             };
         }
 
+        var descriptionValidationError = ValidateCategoryDescription(description);
+        if (!string.IsNullOrWhiteSpace(descriptionValidationError))
+        {
+            return new CreateCategoryResult
+            {
+                Succeeded = false,
+                Message = descriptionValidationError
+            };
+        }
+
         var normalizedName = (name ?? string.Empty).Trim();
+        var normalizedDescription = (description ?? string.Empty).Trim();
 
         var category = new Category
         {
-            Name = normalizedName
+            Name = normalizedName,
+            Description = normalizedDescription
         };
 
         _categoryRepository.Add(category);
@@ -64,7 +76,7 @@ public class ContentManagementService : IContentManagementService
         };
     }
 
-    public ContentManagementActionResult UpdateCategory(int categoryId, string name)
+    public ContentManagementActionResult UpdateCategory(int categoryId, string name, string description)
     {
         var category = _categoryRepository.Get(categoryId);
         if (category == null)
@@ -86,7 +98,18 @@ public class ContentManagementService : IContentManagementService
             };
         }
 
+        var descriptionValidationError = ValidateCategoryDescription(description);
+        if (!string.IsNullOrWhiteSpace(descriptionValidationError))
+        {
+            return new ContentManagementActionResult
+            {
+                Succeeded = false,
+                Message = descriptionValidationError
+            };
+        }
+
         category.Name = (name ?? string.Empty).Trim();
+        category.Description = (description ?? string.Empty).Trim();
         _categoryRepository.Update(category);
         _categoryRepository.Save();
 
@@ -354,6 +377,7 @@ public class ContentManagementService : IContentManagementService
                 {
                     CategoryId = category.Id,
                     CategoryName = category.Name,
+                    Description = category.Description ?? string.Empty,
                     QuestionCount = matches.Select(m => m.QuestionCount).FirstOrDefault()
                 })
             .OrderBy(x => x.CategoryName)
@@ -431,6 +455,23 @@ public class ContentManagementService : IContentManagementService
         if (correctOption < 1 || correctOption > 4)
         {
             return "Please select a valid correct option.";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateCategoryDescription(string description)
+    {
+        var normalizedDescription = (description ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedDescription))
+        {
+            return "Category description is required.";
+        }
+
+        if (normalizedDescription.Length < 6 || normalizedDescription.Length > 220)
+        {
+            return "Category description must be between 6 and 220 characters.";
         }
 
         return null;

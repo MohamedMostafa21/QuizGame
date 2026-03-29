@@ -9,7 +9,7 @@
         <article class="manage-form-card glass-panel auto-reveal">
             <p class="section-kicker">Question Bank</p>
             <h1 class="section-title">@(Model.EditingCategoryId.HasValue ? "Edit Category" : "Add Categories")</h1>
-            <p class="muted-label mb-3">Create, update, and maintain category names for cleaner game setup.</p>
+            <p class="muted-label mb-3">Create, update, and maintain package names and descriptions for cleaner game setup.</p>
 
             @if (TempData["ManageSuccess"] != null)
             {
@@ -34,6 +34,16 @@
                     <span asp-validation-for="Name" class="text-danger"></span>
                 </div>
 
+                <div class="mb-3">
+                    <label asp-for="Description" class="form-label"></label>
+                    <textarea asp-for="Description"
+                              class="form-control"
+                              rows="3"
+                              maxlength="220"
+                              placeholder="e.g. Flags, world capitals, and map-based puzzles."></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+
                 <div class="manage-actions">
                     <button type="submit" class="btn btn-neon">
                         <i class="fa-solid @(Model.EditingCategoryId.HasValue ? "fa-pen" : "fa-circle-plus")"></i>
@@ -56,6 +66,7 @@
             <p class="section-kicker">Tips</p>
             <ul>
                 <li>Use short, clear names for categories.</li>
+                <li>Write descriptions that explain the package theme.</li>
                 <li>Avoid duplicates to keep setup clean.</li>
                 <li>Add at least one category before adding questions.</li>
             </ul>
@@ -82,6 +93,7 @@
                            asp-action="Categories"
                            asp-route-categoryId="@category.CategoryId">
                             <span class="category-count-name">@category.CategoryName</span>
+                            <span class="category-count-description">@(string.IsNullOrWhiteSpace(category.Description) ? "No description yet." : category.Description)</span>
                             <span class="category-count-value">@category.QuestionCount questions</span>
                         </a>
 
@@ -120,6 +132,7 @@
                 <div>
                     <p class="section-kicker mb-1">Category Questions</p>
                     <h2 class="section-title mb-1">@Model.SelectedCategoryName</h2>
+                    <p class="muted-label mb-1">@(string.IsNullOrWhiteSpace(Model.SelectedCategoryDescription) ? "No description yet." : Model.SelectedCategoryDescription)</p>
                     <p class="muted-label mb-0">Showing @Model.SelectedCategoryQuestions.Count question(s).</p>
                 </div>
             </div>
