@@ -51,6 +51,50 @@ namespace QuizGame.Services
             };
         }
 
+        public LobbyIndexViewModel GetLobbyIndexViewModel(string currentUserId)
+        {
+            Dictionary<int, string> categoryNames = _categoryRepository
+                .GetAll()
+                .ToDictionary(c => c.Id, c => c.Name);
+
+            List<Game> waitingGames = _gameRepository
+                .GetAll()
+                .Where(g => g.Status == GameStatus.Waiting)
+                .OrderByDescending(g => g.Id)
+                .Take(30)
+                .ToList();
+
+            List<PendingGameViewModel> pendingGames = waitingGames
+                .Select(game =>
+                {
+                    string hostName = _userManager.FindByIdAsync(game.HostId).GetAwaiter().GetResult()?.UserName ?? "Host";
+                    int playerCount = _gamePlayerRepository.GetByGame(game.Id).Count();
+                    bool isUserJoined = !string.IsNullOrWhiteSpace(currentUserId)
+                        && _gamePlayerRepository.GetByGame(game.Id).Any(gp => gp.UserId == currentUserId);
+
+                    string categoryName = game.CategoryId.HasValue && categoryNames.TryGetValue(game.CategoryId.Value, out string? mappedCategory)
+                        ? mappedCategory
+                        : "All Categories";
+
+                    return new PendingGameViewModel
+                    {
+                        GameId = game.Id,
+                        RoomCode = game.RoomCode,
+                        HostName = hostName,
+                        CategoryName = categoryName,
+                        QuestionCount = game.QuestionCount,
+                        PlayerCount = playerCount,
+                        IsUserJoined = isUserJoined
+                    };
+                })
+                .ToList();
+
+            return new LobbyIndexViewModel
+            {
+                PendingGames = pendingGames
+            };
+        }
+
         public string CreateGame(CreateGameViewModel vm, string hostId)
         {
             string roomCode = GenerateUniqueRoomCode();

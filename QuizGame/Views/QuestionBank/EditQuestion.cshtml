@@ -1,0 +1,112 @@
+@model QuizGame.ViewModels.EditQuestionViewModel
+
+@{
+    ViewData["Title"] = "Edit Question";
+}
+
+<section class="manage-page">
+    <div class="manage-form-layout">
+        <article class="manage-form-card glass-panel auto-reveal">
+            <p class="section-kicker">Question Bank</p>
+            <h1 class="section-title">Edit Question</h1>
+            <p class="muted-label mb-3">Update question details and answer options.</p>
+
+            <form asp-action="EditQuestion" method="post" class="manage-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="QuestionId" />
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="manage-two-col">
+                    <div class="mb-3">
+                        <label asp-for="CategoryId" class="form-label"></label>
+                        <select asp-for="CategoryId" class="form-select">
+                            <option value="">Select category</option>
+                            @foreach (var category in Model.Categories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </select>
+                        <span asp-validation-for="CategoryId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CorrectOption" class="form-label"></label>
+                        <select asp-for="CorrectOption" class="form-select">
+                            <option value="1">Option A</option>
+                            <option value="2">Option B</option>
+                            <option value="3">Option C</option>
+                            <option value="4">Option D</option>
+                        </select>
+                        <span asp-validation-for="CorrectOption" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Points" class="form-label"></label>
+                        <input asp-for="Points" class="form-control" type="number" min="50" max="2000" />
+                        <span asp-validation-for="Points" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TimeLimitSeconds" class="form-label"></label>
+                        <input asp-for="TimeLimitSeconds" class="form-control" type="number" min="5" max="120" />
+                        <span asp-validation-for="TimeLimitSeconds" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Text" class="form-label"></label>
+                    <textarea asp-for="Text" class="form-control" rows="3" maxlength="300"></textarea>
+                    <span asp-validation-for="Text" class="text-danger"></span>
+                </div>
+
+                <div class="manage-options-grid">
+                    <div class="mb-3">
+                        <label asp-for="OptionA" class="form-label"></label>
+                        <input asp-for="OptionA" class="form-control" maxlength="120" />
+                        <span asp-validation-for="OptionA" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="OptionB" class="form-label"></label>
+                        <input asp-for="OptionB" class="form-control" maxlength="120" />
+                        <span asp-validation-for="OptionB" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="OptionC" class="form-label"></label>
+                        <input asp-for="OptionC" class="form-control" maxlength="120" />
+                        <span asp-validation-for="OptionC" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="OptionD" class="form-label"></label>
+                        <input asp-for="OptionD" class="form-control" maxlength="120" />
+                        <span asp-validation-for="OptionD" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="manage-actions">
+                    <button type="submit" class="btn btn-neon">
+                        <i class="fa-solid fa-floppy-disk"></i> Update Question
+                    </button>
+                    <a class="btn btn-glass" asp-action="Categories" asp-route-categoryId="@Model.CategoryId">
+                        <i class="fa-solid fa-arrow-left"></i> Back To Categories
+                    </a>
+                </div>
+            </form>
+        </article>
+
+        <aside class="manage-help-card glass-panel auto-reveal">
+            <p class="section-kicker">Safe Editing</p>
+            <ul>
+                <li>Questions used in existing games are locked.</li>
+                <li>Keep options unique to avoid confusion.</li>
+                <li>Correct option must match one of the four choices.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

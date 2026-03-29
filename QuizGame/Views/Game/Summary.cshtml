@@ -1,52 +1,138 @@
+@* REDESIGNED: Scoreboard Summary - Premium Gaming UI *@
 @model QuizGame.ViewModels.GameResultViewModel
+
 @{
-    ViewData["Title"] = "Game Summary";
+    ViewData["Title"] = "Leaderboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var rankings = (Model.FinalRankings ?? new List<QuizGame.ViewModels.PlayerRankingViewModel>())
+        .OrderBy(r => r.Rank)
+        .ToList();
+
+    var podium = rankings.Take(3).ToList();
+    var rest = rankings.Skip(3).ToList();
+
+    var emojiPool = new[] { "🦊", "🐯", "🦄", "🐼", "🐙", "🐺", "🦁", "🐧", "🐸", "🐵", "🦅", "🐲" };
+
+    string Avatar(string name)
+    {
+        var safe = string.IsNullOrWhiteSpace(name) ? "Player" : name;
+        var hash = safe.Sum(ch => (int)ch);
+        return emojiPool[Math.Abs(hash) % emojiPool.Length];
+    }
+
+    QuizGame.ViewModels.PlayerRankingViewModel? PodiumAt(int rank)
+    {
+        return podium.FirstOrDefault(item => item.Rank == rank);
+    }
+
+    var first = PodiumAt(1);
+    var second = PodiumAt(2);
+    var third = PodiumAt(3);
 }
 
-<div class="container mt-4">
-    <h2>Game Summary</h2>
-    <p class="text-muted mb-1">Room: @Model.RoomCode</p>
-    <p class="text-muted">Category: @Model.CategoryName</p>
-
-    <div class="card mb-4">
-        <div class="card-header">Final Rankings</div>
-        <div class="card-body p-0">
-            @if (Model.FinalRankings.Any())
-            {
-                <table class="table table-striped mb-0">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Player</th>
-                            <th>Score</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var player in Model.FinalRankings)
-                        {
-                            <tr>
-                                <td>@player.Rank</td>
-                                <td>@player.UserName</td>
-                                <td>@player.Score</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
-            else
-            {
-                <div class="p-3">No ranking data available.</div>
-            }
+<section class="scoreboard-page">
+    <header class="scoreboard-header glass-panel auto-reveal">
+        <div>
+            <p class="section-kicker mb-1">Final Standings</p>
+            <h1 class="section-title mb-1">Leaderboard</h1>
+            <p class="muted-label mb-0">Match completed. Celebrate the podium and track every round result.</p>
         </div>
-    </div>
 
-    <div class="card mb-4">
-        <div class="card-header">Question Results</div>
-        <div class="card-body p-0">
-            @if (Model.QuestionResults.Any())
+        <div class="meta-pills">
+            <span class="meta-pill"><i class="fa-solid fa-hashtag"></i> Room: @Model.RoomCode</span>
+            <span class="meta-pill"><i class="fa-solid fa-layer-group"></i> Category: @Model.CategoryName</span>
+        </div>
+    </header>
+
+    @if (rankings.Any())
+    {
+        <section class="podium-wrap glass-panel auto-reveal" id="confettiTarget">
+            <div class="podium-grid">
+                <article class="podium-slot second">
+                    @if (second != null)
+                    {
+                        <div class="podium-medal">🥈</div>
+                        <div class="podium-avatar">@Avatar(second.UserName)</div>
+                        <h3 class="podium-name">@second.UserName</h3>
+                        <div class="podium-score">@second.Score</div>
+                    }
+                    else
+                    {
+                        <div class="podium-medal">-</div>
+                        <p class="muted-label mb-0">No 2nd place yet</p>
+                    }
+                </article>
+
+                <article class="podium-slot first">
+                    @if (first != null)
+                    {
+                        <div class="podium-medal">👑</div>
+                        <div class="podium-avatar">@Avatar(first.UserName)</div>
+                        <h3 class="podium-name">@first.UserName</h3>
+                        <div class="podium-score">@first.Score</div>
+                    }
+                    else
+                    {
+                        <div class="podium-medal">-</div>
+                        <p class="muted-label mb-0">No 1st place yet</p>
+                    }
+                </article>
+
+                <article class="podium-slot third">
+                    @if (third != null)
+                    {
+                        <div class="podium-medal">🥉</div>
+                        <div class="podium-avatar">@Avatar(third.UserName)</div>
+                        <h3 class="podium-name">@third.UserName</h3>
+                        <div class="podium-score">@third.Score</div>
+                    }
+                    else
+                    {
+                        <div class="podium-medal">-</div>
+                        <p class="muted-label mb-0">No 3rd place yet</p>
+                    }
+                </article>
+            </div>
+
+            <div class="confetti-layer" id="confettiLayer"></div>
+        </section>
+
+        <section class="rank-list glass-panel auto-reveal">
+            @for (var i = 0; i < rest.Count; i++)
             {
-                <table class="table table-striped mb-0">
+                var player = rest[i];
+                var rankGain = Math.Max(0, 6 - player.Rank);
+
+                <div class="rank-row" style="--delay:@(i * 0.1)s;">
+                    <span class="rank-number">#@player.Rank</span>
+                    <span class="rank-avatar">@Avatar(player.UserName)</span>
+                    <strong>@player.UserName</strong>
+                    <span class="rank-score">@player.Score</span>
+                    <span class="rank-delta">▲ +@rankGain</span>
+                </div>
+            }
+
+            @if (!rest.Any())
+            {
+                <div class="placeholder-state">Only podium players in this match.</div>
+            }
+        </section>
+    }
+    else
+    {
+        <section class="glass-panel auto-reveal p-3">
+            <div class="placeholder-state">No ranking data available for this room yet.</div>
+        </section>
+    }
+
+    <section class="questions-panel glass-panel auto-reveal">
+        <h3 class="mb-3"><i class="fa-solid fa-list-check"></i> Round Breakdown</h3>
+
+        @if (Model.QuestionResults.Any())
+        {
+            <div class="table-responsive">
+                <table class="table questions-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -69,13 +155,43 @@
                         }
                     </tbody>
                 </table>
-            }
-            else
-            {
-                <div class="p-3">No question result data available.</div>
-            }
-        </div>
-    </div>
+            </div>
+        }
+        else
+        {
+            <div class="placeholder-state">No question result data available.</div>
+        }
+    </section>
 
-    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Back to Home</a>
-</div>
+    <div class="summary-actions auto-reveal">
+        <a class="btn btn-neon" asp-controller="Lobby" asp-action="Create">
+            <i class="fa-solid fa-rotate"></i> Play Again
+        </a>
+        <a class="btn btn-glass" asp-controller="Home" asp-action="Index">
+            <i class="fa-solid fa-house"></i> Back to Home
+        </a>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            const confettiLayer = document.getElementById("confettiLayer");
+            if (!confettiLayer) {
+                return;
+            }
+
+            const colors = ["#00F5FF", "#7C3AED", "#FF4757", "#2ECC71", "#FFD166"];
+
+            for (let i = 0; i < 36; i++) {
+                const piece = document.createElement("span");
+                piece.className = "confetti";
+                piece.style.left = `${Math.random() * 100}%`;
+                piece.style.background = colors[i % colors.length];
+                piece.style.animationDelay = `${Math.random() * 0.8}s`;
+                piece.style.setProperty("--x-shift", `${Math.random() * 120 - 60}px`);
+                confettiLayer.appendChild(piece);
+            }
+        })();
+    </script>
+}

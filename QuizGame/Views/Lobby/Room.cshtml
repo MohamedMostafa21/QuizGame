@@ -1,152 +1,397 @@
+@* REDESIGNED: Waiting Room Lobby - Premium Gaming UI *@
 @model QuizGame.ViewModels.RoomViewModel
 
 @{
-    ViewData["Title"] = "Room";
-}
+    ViewData["Title"] = "Lobby";
 
-<h1>Room</h1>
+    var playerNames = Model.GamePlayers?
+        .Select(gp => gp.User.UserName)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Distinct()
+        .ToList() ?? new List<string>();
 
-<div>
-    <h4>RoomViewModel</h4>
-    <hr />
-    <dl class="row">
-        <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.HostName)
-        </dt>
-        <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.HostName)
-        </dd>
-        <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.RoomCode)
-        </dt>
-        <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.RoomCode)
-        </dd>
-        <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.CategoryName)
-        </dt>
-        <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.CategoryName)
-        </dd>
-        <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.QuestionCount)
-        </dt>
-        <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.QuestionCount)
-        </dd>
-    </dl>
-</div>
+    var emojiPool = new[] { "🦊", "🐯", "🦄", "🐼", "🐙", "🐺", "🦁", "🐧", "🐸", "🐵", "🦅", "🐲" };
 
-<dt class="col-sm-2">Players</dt>
-<dd class="col-sm-10">
-    <table class="table" id="playersTable" style="@(Model.GamePlayers != null && Model.GamePlayers.Any() ? "" : "display:none;")">
-        <thead>
-            <tr>
-                <th>Name</th>
-            </tr>
-        </thead>
-        <tbody id="playersList">
-            @if (Model.GamePlayers != null && Model.GamePlayers.Any())
-            {
-                @foreach (var player in Model.GamePlayers)
-                {
-                    <tr>
-                        <td>@player.User.UserName</td>
-                    </tr>
-                }
-            }
-        </tbody>
-    </table>
-
-    <span id="noPlayersMessage" style="@(Model.GamePlayers == null || !Model.GamePlayers.Any() ? "" : "display:none;")">
-        No players yet
-    </span>
-</dd>
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger">@TempData["Error"]</div>
-}
-
-<div class="d-flex justify-content-between">
-    <a asp-action="Leave" asp-route-roomCode="@Model.RoomCode">Leave</a>
-
-    @if (Model.HostId == Model.UserId)
+    string GetAvatar(string name)
     {
-        <form asp-controller="Lobby" asp-action="Start" method="post">
-            <input type="hidden" name="RoomCode" value="@Model.RoomCode" />
-            <button type="submit" class="btn btn-success">Start Game</button>
-        </form>
+        var safe = string.IsNullOrWhiteSpace(name) ? "Player" : name;
+        var hash = safe.Sum(ch => (int)ch);
+        return emojiPool[Math.Abs(hash) % emojiPool.Length];
     }
+
+    var isHost = Model.HostId == Model.UserId;
+}
+
+<section class="room-page">
+    <header class="room-topbar auto-reveal">
+        <div>
+            <p class="section-kicker mb-1">Pre-Game Lobby</p>
+            <h1 class="section-title mb-1">Squad Assembly</h1>
+            <p class="muted-label mb-0">Host controls on the left. Live player feed on the right.</p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="room-code-badge" id="roomCodeBadge">
+                <i class="fa-solid fa-key"></i>
+                ROOM: @Model.RoomCode
+            </span>
+            <button class="copy-btn" id="copyRoomCodeBtn" type="button">
+                <i class="fa-regular fa-copy" id="copyRoomCodeIcon"></i>
+                <span id="copyRoomCodeLabel">Copy</span>
+            </button>
+        </div>
+    </header>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger auto-reveal">@TempData["Error"]</div>
+    }
+
+    <div class="lobby-layout">
+        <article class="lobby-left glass-panel auto-reveal">
+            <h3 class="mb-3"><i class="fa-solid fa-tower-observation"></i> Host Dashboard</h3>
+
+            <div class="stat-list mb-3">
+                <div class="stat-row">
+                    <span>Host</span>
+                    <strong>@Model.HostName</strong>
+                </div>
+                <div class="stat-row">
+                    <span>Category</span>
+                    <strong>@Model.CategoryName</strong>
+                </div>
+                <div class="stat-row">
+                    <span>Question Count</span>
+                    <strong>@Model.QuestionCount</strong>
+                </div>
+                <div class="stat-row">
+                    <span>Ready Players</span>
+                    <span class="player-count-chip" id="playerReadyCount">@playerNames.Count / 2</span>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <a asp-action="Leave" asp-route-roomCode="@Model.RoomCode" class="btn btn-glass">
+                    <i class="fa-solid fa-door-open"></i> Leave Room
+                </a>
+
+                @if (isHost)
+                {
+                    <form asp-controller="Lobby" asp-action="Start" method="post" id="startGameForm" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="RoomCode" value="@Model.RoomCode" />
+                        <button type="submit" class="btn btn-neon" id="startGameBtn" @(playerNames.Count < 2 ? "disabled" : null)>
+                            <i class="fa-solid fa-play"></i> Launch Game
+                        </button>
+                    </form>
+                }
+            </div>
+
+            @if (isHost)
+            {
+                <p class="muted-label mt-3 mb-0">Launch unlocks automatically when at least 2 players are connected.</p>
+            }
+        </article>
+
+        <article class="lobby-right glass-panel auto-reveal">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0"><i class="fa-solid fa-users"></i> Live Players</h3>
+                <span class="player-count-chip" id="playerCountChip">@playerNames.Count online</span>
+            </div>
+
+            <div class="player-grid" id="playersList">
+                @foreach (var userName in playerNames)
+                {
+                    <div class="player-card" data-player="@userName">
+                        <div class="player-main">
+                            <span class="player-avatar">@GetAvatar(userName)</span>
+                            <strong>@userName</strong>
+                        </div>
+                        <span class="player-ready">
+                            <span class="player-ready-dot"></span> READY
+                        </span>
+                    </div>
+                }
+            </div>
+
+            <div id="noPlayersMessage" class="placeholder-state mt-3" style="@(playerNames.Any() ? "display:none;" : string.Empty)">
+                No players connected yet. Share the code and wait for challengers.
+            </div>
+        </article>
+    </div>
+
+    <article class="lobby-chat chat-panel glass-panel auto-reveal">
+        <h3 class="mb-3"><i class="fa-solid fa-comments"></i> Lobby Chat</h3>
+        <div id="lobbyChatMessages" class="chat-list"></div>
+        <div class="chat-input-row">
+            <input id="lobbyChatInput"
+                   class="form-control"
+                   type="text"
+                   placeholder="Chat while waiting for players..."
+                   maxlength="180"
+                   onkeydown="if(event.key==='Enter') sendLobbyChat()" />
+            <button onclick="sendLobbyChat()" class="btn btn-glass" type="button">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </article>
+</section>
+
+<div class="launch-overlay" id="launchOverlay" aria-hidden="true">
+    <div class="launch-content">
+        <div class="launch-counter" id="launchCounter">3</div>
+        <div class="launch-text" id="launchText">GAME STARTING</div>
+    </div>
 </div>
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-
     <script>
-        const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/hubs/game")
-        .build();
+        (function () {
+            const roomCode = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RoomCode));
+            const hostName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.HostName));
+            const emojis = ["🦊", "🐯", "🦄", "🐼", "🐙", "🐺", "🦁", "🐧", "🐸", "🐵", "🦅", "🐲"];
 
-        connection.on("PlayerJoined", function (userName) {
-        const noPlayersMsg = document.getElementById("noPlayersMessage");
-        if (noPlayersMsg) noPlayersMsg.style.display = "none";
+            const playersList = document.getElementById("playersList");
+            const noPlayersMessage = document.getElementById("noPlayersMessage");
+            const playerCountChip = document.getElementById("playerCountChip");
+            const playerReadyCount = document.getElementById("playerReadyCount");
+            const startGameBtn = document.getElementById("startGameBtn");
+            const startGameForm = document.getElementById("startGameForm");
+            const launchOverlay = document.getElementById("launchOverlay");
+            const launchCounter = document.getElementById("launchCounter");
+            const copyButton = document.getElementById("copyRoomCodeBtn");
+            const copyIcon = document.getElementById("copyRoomCodeIcon");
+            const copyLabel = document.getElementById("copyRoomCodeLabel");
+            const lobbyChatMessages = document.getElementById("lobbyChatMessages");
+            const lobbyChatInput = document.getElementById("lobbyChatInput");
 
-        const playersTable = document.getElementById("playersTable");
-        if (playersTable) playersTable.style.display = "table";
+            let isLaunchSequenceRunning = false;
+            let bypassStartSubmit = false;
 
-        const tbody = document.getElementById("playersList");
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.textContent = userName;
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        });
+            function avatarFor(userName) {
+                const safe = userName || "Player";
+                let hash = 0;
+                for (let i = 0; i < safe.length; i++) {
+                    hash += safe.charCodeAt(i);
+                }
+                return emojis[Math.abs(hash) % emojis.length];
+            }
 
-        connection.on("PlayerLeft", function (userName) {
-            const tbody = document.getElementById("playersList");
-            const rows = tbody.getElementsByTagName("tr");
-            for (let i = 0; i < rows.length; i++) {
-                const td = rows[i].getElementsByTagName("td")[0];
-                if (td && td.textContent === userName) {
-                    tbody.removeChild(rows[i]);
-                    break;
+            function playerCard(userName) {
+                const card = document.createElement("div");
+                card.className = "player-card player-enter";
+                card.dataset.player = userName;
+                card.innerHTML = `
+                    <div class="player-main">
+                        <span class="player-avatar">${avatarFor(userName)}</span>
+                        <strong>${userName}</strong>
+                    </div>
+                    <span class="player-ready">
+                        <span class="player-ready-dot"></span> READY
+                    </span>
+                `;
+                return card;
+            }
+
+            function findPlayer(userName) {
+                return Array.from(playersList.children).find(node => node.dataset.player === userName);
+            }
+
+            function refreshState() {
+                const playerCount = playersList ? playersList.children.length : 0;
+
+                if (playerCountChip) {
+                    playerCountChip.textContent = `${playerCount} online`;
+                }
+
+                if (playerReadyCount) {
+                    playerReadyCount.textContent = `${playerCount} / 2`;
+                }
+
+                if (noPlayersMessage) {
+                    noPlayersMessage.style.display = playerCount > 0 ? "none" : "";
+                }
+
+                if (startGameBtn) {
+                    startGameBtn.disabled = playerCount < 2;
                 }
             }
-        });
-            
-        connection.on("InitialPlayers", function (userNames) {
-        const noPlayersMsg = document.getElementById("noPlayersMessage");
-        if (noPlayersMsg)
-        noPlayersMsg.style.display = userNames && userNames.length ? "none" : "";
 
-        const playersTable = document.getElementById("playersTable");
-        if (playersTable)
-        playersTable.style.display = userNames && userNames.length ? "table" : "none";
+            function runLaunchCountdown(onComplete) {
+                if (isLaunchSequenceRunning) {
+                    return;
+                }
 
-        const tbody = document.getElementById("playersList");
+                isLaunchSequenceRunning = true;
+                launchOverlay.classList.add("active");
 
-        if (tbody && userNames) {
-        tbody.innerHTML = '';
-        userNames.forEach(function (name) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.textContent = name;
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        });
-        }
-        });
+                const steps = ["3", "2", "1", "GO!"];
+                let index = 0;
 
-        connection.on("NavigateToGame", function (roomCode) {
-        window.location.href = `/Game/Play?roomCode=${encodeURIComponent(roomCode)}`;
-        });
+                function tick() {
+                    launchCounter.textContent = steps[index];
+                    launchCounter.style.animation = "none";
+                    void launchCounter.offsetWidth;
+                    launchCounter.style.animation = "launch-pop 600ms ease";
 
-        connection.start().then(function () {
-        console.log("Connected to the Player Hub.");
-        return connection.invoke("JoinGameRoom", "@Model.RoomCode");
-        }).catch(function (err) {
-        console.error(err.toString());
-        });
+                    index++;
+                    if (index >= steps.length) {
+                        window.setTimeout(function () {
+                            onComplete();
+                        }, 550);
+                        return;
+                    }
+
+                    window.setTimeout(tick, 720);
+                }
+
+                tick();
+            }
+
+            function appendLobbyChat(message) {
+                if (!lobbyChatMessages || !message) {
+                    return;
+                }
+
+                const row = document.createElement("div");
+                row.className = "chat-row" + (message.userName === "System" ? " system" : "");
+
+                const meta = document.createElement("div");
+                meta.className = "chat-meta";
+
+                const user = document.createElement("strong");
+                user.textContent = message.userName || "System";
+
+                const time = document.createElement("span");
+                time.textContent = message.sentAt || "";
+
+                const text = document.createElement("div");
+                text.textContent = message.text || "";
+
+                meta.appendChild(user);
+                meta.appendChild(time);
+                row.appendChild(meta);
+                row.appendChild(text);
+
+                lobbyChatMessages.appendChild(row);
+                lobbyChatMessages.scrollTop = lobbyChatMessages.scrollHeight;
+            }
+
+            window.sendLobbyChat = function sendLobbyChat() {
+                if (!lobbyChatInput) {
+                    return;
+                }
+
+                const text = lobbyChatInput.value.trim();
+                if (!text) {
+                    return;
+                }
+
+                connection.invoke("SendChatMessage", roomCode, text).catch(function (error) {
+                    console.error(error.toString());
+                });
+
+                lobbyChatInput.value = "";
+            };
+
+            if (copyButton) {
+                copyButton.addEventListener("click", function () {
+                    navigator.clipboard.writeText(roomCode).then(function () {
+                        copyButton.classList.add("copied");
+                        copyIcon.className = "fa-solid fa-check";
+                        if (copyLabel) {
+                            copyLabel.textContent = "Copied";
+                        }
+
+                        window.setTimeout(function () {
+                            copyButton.classList.remove("copied");
+                            copyIcon.className = "fa-regular fa-copy";
+                            if (copyLabel) {
+                                copyLabel.textContent = "Copy";
+                            }
+                        }, 1400);
+                    });
+                });
+            }
+
+            if (startGameForm) {
+                startGameForm.addEventListener("submit", function (event) {
+                    if (bypassStartSubmit) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    if (startGameBtn && startGameBtn.disabled) {
+                        return;
+                    }
+
+                    runLaunchCountdown(function () {
+                        bypassStartSubmit = true;
+                        startGameForm.submit();
+                    });
+                });
+            }
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/hubs/game")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("PlayerJoined", function (userName) {
+                if (!playersList || findPlayer(userName)) {
+                    return;
+                }
+
+                playersList.appendChild(playerCard(userName));
+                refreshState();
+                appendLobbyChat({ userName: "System", text: `${userName} joined`, sentAt: "" });
+            });
+
+            connection.on("PlayerLeft", function (userName) {
+                if (!playersList) {
+                    return;
+                }
+
+                const row = findPlayer(userName);
+                if (row) {
+                    row.remove();
+                }
+
+                refreshState();
+                appendLobbyChat({ userName: "System", text: `${userName} left`, sentAt: "" });
+            });
+
+            connection.on("ChatMessageReceived", function (message) {
+                appendLobbyChat(message);
+            });
+
+            connection.on("InitialPlayers", function (userNames) {
+                if (!playersList) {
+                    return;
+                }
+
+                playersList.innerHTML = "";
+                (userNames || []).forEach(function (name) {
+                    playersList.appendChild(playerCard(name));
+                });
+
+                refreshState();
+            });
+
+            connection.on("NavigateToGame", function (nextRoomCode) {
+                runLaunchCountdown(function () {
+                    window.location.href = `/Game/Play?roomCode=${encodeURIComponent(nextRoomCode)}`;
+                });
+            });
+
+            connection.start().then(function () {
+                return connection.invoke("JoinGameRoom", roomCode);
+            }).catch(function (err) {
+                console.error(err.toString());
+            });
+
+            refreshState();
+        })();
     </script>
 }

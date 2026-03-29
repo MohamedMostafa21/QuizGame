@@ -1,274 +1,473 @@
-﻿@model QuizGame.ViewModels.GamePlayViewModel
+@* REDESIGNED: Active Game Play - Premium Gaming UI *@
+@model QuizGame.ViewModels.GamePlayViewModel
+
 @{
     ViewData["Title"] = "Game";
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var tileClasses = new[] { "answer-red", "answer-blue", "answer-yellow", "answer-green" };
+    var tileShapes = new[] { "▲", "△", "●", "■" };
 }
 
-<!-- Pass these values to JavaScript -->
 <input type="hidden" id="roomCode" value="@Model.RoomCode" />
 <input type="hidden" id="gameId" value="@Model.GameId" />
 
-<div style="display:flex; gap:16px; height:90vh; padding:16px;">
-
-    <!-- LEFT: Question + Answers -->
-    <div id="questionPanel" style="flex:2; display:flex; flex-direction:column; gap:12px;">
-
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span id="questionCounter" style="color:#888;">
+<section class="play-shell">
+    <header class="play-topbar glass-panel auto-reveal">
+        <div class="top-left">
+            <span class="kicker-mini">Question</span>
+            <strong class="question-counter" id="questionCounter">
                 @(Model.ActiveQuestion != null
-                    ? $"Question {Model.ActiveQuestion.Order} of {Model.ActiveQuestion.TotalQuestions}"
-                    : "Waiting for question...")
-            </span>
-            <span id="pointsBadge" style="background:#2E75B6; color:white; padding:4px 12px; border-radius:12px;">
-                @(Model.ActiveQuestion?.Points ?? 0) pts
-            </span>
+                    ? $"Q {Model.ActiveQuestion.Order} / {Model.ActiveQuestion.TotalQuestions}"
+                    : "Q -- / --")
+            </strong>
         </div>
 
-        <!-- Timer bar -->
-        <div style="background:#eee; border-radius:4px; height:8px;">
-            <div id="timerBar" style="height:8px; background:#2E75B6; border-radius:4px; transition:width 1s linear; width:100%;"></div>
-        </div>
-        <div style="text-align:right;">
-            <span id="timerText" style="font-weight:bold;">@(Model.ActiveQuestion?.TimeLimitSeconds ?? 0)s</span>
-        </div>
-
-        <!-- Question text -->
-        <div id="questionText" style="font-size:1.4rem; font-weight:bold; padding:16px; background:#f5f7ff; border-radius:8px; min-height:80px;">
-            @(Model.ActiveQuestion?.Text ?? "")
+        <div class="timer-ring-shell">
+            <svg class="timer-ring-svg" viewBox="0 0 132 132" aria-hidden="true">
+                <circle class="timer-ring-base" cx="66" cy="66" r="52"></circle>
+                <circle class="timer-ring-progress" id="timerRing" cx="66" cy="66" r="52"></circle>
+            </svg>
+            <span class="timer-value" id="timerText">@(Model.ActiveQuestion?.TimeLimitSeconds ?? 0)s</span>
         </div>
 
-        <!-- Answer buttons -->
-        <div id="answerButtons" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="top-right">
+            <span class="rank-pill" id="myRank">Rank: --</span>
+            <strong class="score-pill" id="myScore">0 pts</strong>
+        </div>
+    </header>
+
+    <article class="question-stage glass-panel auto-reveal" id="questionStage">
+        <div class="question-card">
+            <h2 class="question-text" id="questionText">@(Model.ActiveQuestion?.Text ?? "Waiting for next question...")</h2>
+        </div>
+
+        <div class="q-progress-track">
+            <div class="q-progress" id="questionProgress"></div>
+        </div>
+
+        <div id="answerButtons" class="answer-grid">
             @if (Model.ActiveQuestion != null)
             {
-                foreach (var opt in Model.ActiveQuestion.Options)
+                for (var i = 0; i < Model.ActiveQuestion.Options.Count; i++)
                 {
-                    <button class="answer-btn"
-                            data-id="@opt.Id"
-                            onclick="submitAnswer(@opt.Id)"
-                            style="padding:16px; font-size:1rem; border:2px solid #2E75B6;
-                                   border-radius:8px; background:white; cursor:pointer;">
-                        @opt.Text
+                    var option = Model.ActiveQuestion.Options[i];
+                    var color = tileClasses[i % tileClasses.Length];
+                    var shape = tileShapes[i % tileShapes.Length];
+
+                    <button class="answer-tile @color"
+                            data-id="@option.Id"
+                            data-index="@i"
+                            onclick="submitAnswer(@option.Id, this)">
+                        <span class="answer-left">
+                            <span class="answer-shape">@shape</span>
+                            <span>@option.Text</span>
+                        </span>
+                        <span class="answer-icon"></span>
                     </button>
                 }
             }
         </div>
 
-        <!-- Round result message (hidden until a round ends) -->
-        <div id="roundResult" style="display:none; padding:16px; border-radius:8px; text-align:center; font-size:1.1rem;"></div>
+        <div class="floating-points" id="floatingPoints">+100</div>
+    </article>
 
-    </div>
+    <div class="play-bottom-row">
+        <section class="mini-board glass-panel auto-reveal">
+            <h3 class="mb-3"><i class="fa-solid fa-ranking-star"></i> Top 3 Live</h3>
+            <div class="mini-list" id="miniLeaderboard"></div>
+        </section>
 
-    <!-- MIDDLE: Scoreboard -->
-    <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
-        <h3 style="margin:0;">Scoreboard</h3>
-        <div id="scoreboard" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto;">
-            <!-- Filled by SignalR -->
-        </div>
+        <section class="chat-panel glass-panel auto-reveal">
+            <h3 class="mb-3"><i class="fa-solid fa-comments"></i> Squad Chat</h3>
+            <div id="chatMessages" class="chat-list"></div>
+            <div class="chat-input-row">
+                <input id="chatInput"
+                       class="form-control"
+                       type="text"
+                       placeholder="Type a message..."
+                       maxlength="180"
+                       onkeydown="if(event.key==='Enter') sendChat()" />
+                <button onclick="sendChat()" class="btn btn-glass" type="button">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </section>
     </div>
+</section>
 
-    <!-- RIGHT: Chat -->
-    <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
-        <h3 style="margin:0;">Chat</h3>
-        <div id="chatMessages" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px; background:#f9f9f9; padding:8px; border-radius:8px;">
-            <!-- Messages appear here -->
-        </div>
-        <div style="display:flex; gap:6px;">
-            <input id="chatInput" type="text" placeholder="Say something..."
-                   style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px;"
-                   onkeydown="if(event.key==='Enter') sendChat()" />
-            <button onclick="sendChat()" style="padding:8px 14px; background:#2E75B6; color:white; border:none; border-radius:6px; cursor:pointer;">
-                Send
-            </button>
-        </div>
-    </div>
-</div>
+@await Html.PartialAsync("_RoundResultOverlay")
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
-        const roomCode = document.getElementById('roomCode').value;
-        let timerInterval = null;
-        let answeredThisRound = false;
+        (function () {
+            const roomCode = document.getElementById("roomCode").value;
+            const currentUserName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.Identity?.Name ?? string.Empty));
 
-        // ── CONNECT TO HUB ──────────────────────────────────────────────────
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/hubs/game")
-            .withAutomaticReconnect()
-            .build();
+            const timerRing = document.getElementById("timerRing");
+            const timerText = document.getElementById("timerText");
+            const questionProgress = document.getElementById("questionProgress");
+            const answerButtonsContainer = document.getElementById("answerButtons");
+            const questionCounter = document.getElementById("questionCounter");
+            const questionText = document.getElementById("questionText");
+            const miniLeaderboard = document.getElementById("miniLeaderboard");
+            const myRank = document.getElementById("myRank");
+            const myScore = document.getElementById("myScore");
+            const floatingPoints = document.getElementById("floatingPoints");
 
-        connection.start().then(() => {
-            connection.invoke("JoinGameRoom", roomCode);
-        });
+            const roundOverlay = document.getElementById("roundOverlay");
+            const roundOverlayIcon = document.getElementById("roundOverlayIcon");
+            const roundOverlayTitle = document.getElementById("roundOverlayTitle");
+            const roundOverlaySubtitle = document.getElementById("roundOverlaySubtitle");
+            const roundOverlayRank = document.getElementById("roundOverlayRank");
+            const roundOverlayProgress = document.getElementById("roundOverlayProgress");
 
-        // ── SUBMIT ANSWER ───────────────────────────────────────────────────
-        function submitAnswer(optionId) {
-            if (answeredThisRound) return; // prevent double submission
-            answeredThisRound = true;
+            const colorClasses = ["answer-red", "answer-blue", "answer-yellow", "answer-green"];
+            const shapeSymbols = ["▲", "△", "●", "■"];
 
-            // Disable all buttons immediately
-            document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+            const ringRadius = 52;
+            const ringCircumference = 2 * Math.PI * ringRadius;
+            timerRing.style.strokeDasharray = ringCircumference;
+            timerRing.style.strokeDashoffset = 0;
 
-            const gameQuestionId = parseInt(document.querySelector('.answer-btn').dataset.gqid);
-            connection.invoke("SubmitAnswer", roomCode, gameQuestionId, optionId);
-        }
+            let timerInterval = null;
+            let overlayInterval = null;
+            let overlayTimeout = null;
+            let answeredThisRound = false;
+            let selectedOptionId = null;
+            let latestScores = [];
 
-        // ── SEND CHAT ───────────────────────────────────────────────────────
-        function sendChat() {
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-            if (!text) return;
-            connection.invoke("SendChatMessage", roomCode, text);
-            input.value = '';
-        }
-
-        // ── TIMER ───────────────────────────────────────────────────────────
-        function startTimer(seconds) {
-            clearInterval(timerInterval);
-            let remaining = seconds;
-            const bar = document.getElementById('timerBar');
-            const txt = document.getElementById('timerText');
-            bar.style.width = '100%';
-            txt.textContent = remaining + 's';
-
-            timerInterval = setInterval(() => {
-                remaining--;
-                const pct = (remaining / seconds) * 100;
-                bar.style.width = pct + '%';
-                bar.style.background = remaining <= 5 ? '#e74c3c' : '#2E75B6';
-                txt.textContent = remaining + 's';
-                if (remaining <= 0) clearInterval(timerInterval);
-            }, 1000);
-        }
-
-        // ── RENDER QUESTION ─────────────────────────────────────────────────
-        function renderQuestion(q) {
-            answeredThisRound = false;
-
-            document.getElementById('questionCounter').textContent =
-                `Question ${q.order} of ${q.totalQuestions}`;
-            document.getElementById('pointsBadge').textContent = `${q.points} pts`;
-            document.getElementById('questionText').textContent = q.text;
-            document.getElementById('roundResult').style.display = 'none';
-
-            const container = document.getElementById('answerButtons');
-            container.innerHTML = '';
-            q.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = 'answer-btn';
-                btn.dataset.id = opt.id;
-                btn.dataset.gqid = q.gameQuestionId;
-                btn.textContent = opt.text;
-                btn.onclick = () => submitAnswer(opt.id);
-                btn.style.cssText = 'padding:16px; font-size:1rem; border:2px solid #2E75B6; border-radius:8px; background:white; cursor:pointer;';
-                container.appendChild(btn);
-            });
-
-            startTimer(q.timeLimitSeconds);
-        }
-
-        // ── SHOW ROUND END RESULT ───────────────────────────────────────────
-        function showRoundResult(data, timedOut) {
-            clearInterval(timerInterval);
-
-            // Highlight correct answer
-            document.querySelectorAll('.answer-btn').forEach(btn => {
-                btn.disabled = true;
-                if (parseInt(btn.dataset.id) === data.correctAnswerOptionId) {
-                    btn.style.background = '#d4edda';
-                    btn.style.borderColor = '#28a745';
+            function getMyStats(scores) {
+                const rank = scores.findIndex(player => player.userName === currentUserName);
+                if (rank === -1) {
+                    return { rankText: "Rank: --", scoreText: "0 pts" };
                 }
-            });
 
-            const resultDiv = document.getElementById('roundResult');
-            resultDiv.style.display = 'block';
-
-            if (timedOut) {
-                resultDiv.style.background = '#fff3cd';
-                resultDiv.textContent = "Time's up! Nobody answered correctly.";
-            } else {
-                resultDiv.style.background = '#d4edda';
-                resultDiv.textContent = `🏆 ${data.winnerUserName} got it first! +${data.pointsAwarded} pts`;
+                return {
+                    rankText: `Rank: #${rank + 1}`,
+                    scoreText: `${scores[rank].score} pts`
+                };
             }
 
-            updateScoreboard(data.scoreboard);
-        }
+            function renderMiniLeaderboard(scores) {
+                miniLeaderboard.innerHTML = "";
 
-        // ── UPDATE SCOREBOARD ───────────────────────────────────────────────
-        function updateScoreboard(scores) {
-            const sb = document.getElementById('scoreboard');
-            sb.innerHTML = '';
-            scores.forEach((p, i) => {
-                const row = document.createElement('div');
-                row.style.cssText = 'display:flex; justify-content:space-between; padding:8px 12px; background:white; border-radius:6px; border-left:4px solid ' + (i === 0 ? '#f0b429' : '#ddd');
-                row.innerHTML = `<span>${i + 1}. ${p.userName}</span><strong>${p.score}</strong>`;
-                sb.appendChild(row);
-            });
-        }
+                if (!scores || !scores.length) {
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "placeholder-state";
+                    placeholder.textContent = "Leaderboard will appear after the first score update.";
+                    miniLeaderboard.appendChild(placeholder);
+                    return;
+                }
 
-        // ── APPEND CHAT MESSAGE ─────────────────────────────────────────────
-        function appendChat(msg) {
-            const div = document.createElement('div');
-            div.style.cssText = 'padding:4px 8px; background:white; border-radius:6px;';
-            div.innerHTML = `<strong>${msg.userName}</strong> <span style="color:#888; font-size:0.8rem;">${msg.sentAt}</span><br>${msg.text}`;
-            const box = document.getElementById('chatMessages');
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
+                scores.slice(0, 3).forEach(function (player, index) {
+                    const row = document.createElement("div");
+                    row.className = "mini-row";
+                    row.innerHTML = `
+                        <span>${index + 1}. ${player.userName}</span>
+                        <strong>${player.score}</strong>
+                    `;
+                    miniLeaderboard.appendChild(row);
+                });
+            }
 
-        // ── SIGNALR EVENTS ──────────────────────────────────────────────────
+            function updatePlayerHud(scores) {
+                latestScores = scores || [];
+                renderMiniLeaderboard(latestScores);
 
-        // Next question (from timer service or after a winner + delay)
-        connection.on("NextQuestion", q => renderQuestion(q));
+                const stats = getMyStats(latestScores);
+                myRank.textContent = stats.rankText;
+                myScore.textContent = stats.scoreText;
+            }
 
-        // Someone won this round
-        connection.on("RoundWon", data => showRoundResult(data, false));
+            function setTimerVisual(remaining, total) {
+                const safeTotal = Math.max(1, total);
+                const ratio = Math.max(0, remaining / safeTotal);
+                const dashOffset = ringCircumference * (1 - ratio);
 
-        // Time ran out - nobody answered
-        connection.on("RoundTimedOut", data => showRoundResult(data, true));
+                timerRing.style.strokeDashoffset = dashOffset;
+                timerRing.classList.toggle("danger", remaining <= 5);
+                questionProgress.classList.toggle("danger", remaining <= 5);
+                questionProgress.style.width = `${ratio * 100}%`;
+                timerText.textContent = `${Math.max(0, remaining)}s`;
+            }
 
-        // Your answer was rejected (already answered, round closed, etc.)
-        connection.on("AnswerRejected", msg => {
-            alert(msg); // simple for now - improve UX later
-            answeredThisRound = false;
-            document.querySelectorAll('.answer-btn').forEach(b => b.disabled = false);
-        });
+            function startTimer(seconds) {
+                clearInterval(timerInterval);
+                const total = Math.max(1, seconds);
+                let remaining = total;
 
-        // Wrong answer but wasn't the first correct
-        connection.on("AnswerResult", data => {
-            if (!data.isCorrect) {
-                document.querySelectorAll('.answer-btn').forEach(btn => {
-                    if (parseInt(btn.dataset.id) === /* the one they clicked */ -1) {
-                        btn.style.background = '#f8d7da';
+                setTimerVisual(remaining, total);
+
+                timerInterval = window.setInterval(function () {
+                    remaining -= 1;
+                    setTimerVisual(remaining, total);
+
+                    if (remaining <= 0) {
+                        clearInterval(timerInterval);
+                    }
+                }, 1000);
+            }
+
+            function hideRoundOverlay() {
+                roundOverlay.classList.remove("active");
+                clearInterval(overlayInterval);
+                clearTimeout(overlayTimeout);
+            }
+
+            function showRoundOverlay(icon, title, subtitle) {
+                hideRoundOverlay();
+
+                roundOverlayIcon.textContent = icon;
+                roundOverlayTitle.textContent = title;
+                roundOverlaySubtitle.textContent = subtitle;
+
+                const stats = getMyStats(latestScores);
+                roundOverlayRank.textContent = stats.rankText === "Rank: --"
+                    ? "Rank syncing..."
+                    : `Current ${stats.rankText.toLowerCase()}`;
+
+                roundOverlayProgress.style.width = "100%";
+                roundOverlay.classList.add("active");
+
+                let remainingMs = 3000;
+                overlayInterval = window.setInterval(function () {
+                    remainingMs -= 30;
+                    const ratio = Math.max(0, remainingMs / 3000);
+                    roundOverlayProgress.style.width = `${ratio * 100}%`;
+                }, 30);
+
+                overlayTimeout = window.setTimeout(function () {
+                    hideRoundOverlay();
+                }, 3000);
+            }
+
+            function lockAnswers() {
+                document.querySelectorAll(".answer-tile").forEach(function (button) {
+                    button.disabled = true;
+                });
+            }
+
+            function unlockAnswers() {
+                document.querySelectorAll(".answer-tile").forEach(function (button) {
+                    button.disabled = false;
+                    button.classList.remove("selected", "correct", "wrong", "dim");
+                    const icon = button.querySelector(".answer-icon");
+                    if (icon) {
+                        icon.innerHTML = "";
                     }
                 });
             }
-        });
 
-        // Game finished - go to summary
-        connection.on("GameOver", () => {
-            setTimeout(() => {
-                window.location.href = `/Game/Summary?roomCode=${encodeURIComponent(roomCode)}`;
-            }, 2000);
-        });
+            function markCorrectAnswer(correctOptionId) {
+                document.querySelectorAll(".answer-tile").forEach(function (button) {
+                    const icon = button.querySelector(".answer-icon");
+                    const optionId = parseInt(button.dataset.id, 10);
 
-        // Chat message received
-        connection.on("ChatMessageReceived", msg => appendChat(msg));
-
-        // Someone connected/disconnected
-        connection.on("PlayerConnected", name => appendChat({ userName: "System", text: `${name} joined`, sentAt: "" }));
-
-        // ── INITIAL QUESTION (if page loaded mid-game) ──────────────────────
-        // If the controller passed an active question, start the timer for it
-        @if (Model.ActiveQuestion != null)
-        {
-            <text>
-                // Set the gqid on existing buttons
-                document.querySelectorAll('.answer-btn').forEach(btn => {
-                    btn.dataset.gqid = '@Model.ActiveQuestion.GameQuestionId';
+                    if (optionId === correctOptionId) {
+                        button.classList.add("correct");
+                        if (icon) {
+                            icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        }
+                    } else {
+                        button.classList.add("dim");
+                    }
                 });
-                startTimer(@Model.ActiveQuestion.TimeLimitSeconds);
-            </text>
-        }
+            }
+
+            function showFloatingPoints(points) {
+                floatingPoints.textContent = `+${points}`;
+                floatingPoints.classList.remove("show");
+                void floatingPoints.offsetWidth;
+                floatingPoints.classList.add("show");
+            }
+
+            function answerTemplate(option, optionIndex, gameQuestionId) {
+                const colorClass = colorClasses[optionIndex % colorClasses.length];
+                const shape = shapeSymbols[optionIndex % shapeSymbols.length];
+
+                const button = document.createElement("button");
+                button.className = `answer-tile ${colorClass}`;
+                button.dataset.id = option.id;
+                button.dataset.index = optionIndex;
+                button.dataset.gqid = gameQuestionId;
+                button.type = "button";
+                button.innerHTML = `
+                    <span class="answer-left">
+                        <span class="answer-shape">${shape}</span>
+                        <span>${option.text}</span>
+                    </span>
+                    <span class="answer-icon"></span>
+                `;
+                button.addEventListener("click", function () {
+                    submitAnswer(option.id, button);
+                });
+
+                return button;
+            }
+
+            window.submitAnswer = function submitAnswer(optionId, button) {
+                if (answeredThisRound) {
+                    return;
+                }
+
+                answeredThisRound = true;
+                selectedOptionId = optionId;
+
+                lockAnswers();
+                button.classList.add("selected");
+
+                const gameQuestionId = parseInt(button.dataset.gqid, 10);
+                if (Number.isNaN(gameQuestionId)) {
+                    return;
+                }
+
+                connection.invoke("SubmitAnswer", roomCode, gameQuestionId, optionId);
+            };
+
+            window.sendChat = function sendChat() {
+                const chatInput = document.getElementById("chatInput");
+                const text = chatInput.value.trim();
+                if (!text) {
+                    return;
+                }
+
+                connection.invoke("SendChatMessage", roomCode, text);
+                chatInput.value = "";
+            };
+
+            function renderQuestion(question) {
+                hideRoundOverlay();
+                clearInterval(timerInterval);
+
+                answeredThisRound = false;
+                selectedOptionId = null;
+
+                questionCounter.textContent = `Q ${question.order} / ${question.totalQuestions}`;
+                questionText.textContent = question.text;
+
+                answerButtonsContainer.innerHTML = "";
+                (question.options || []).forEach(function (option, index) {
+                    answerButtonsContainer.appendChild(answerTemplate(option, index, question.gameQuestionId));
+                });
+
+                startTimer(question.timeLimitSeconds || 1);
+            }
+
+            function appendChat(message) {
+                const chatBox = document.getElementById("chatMessages");
+                const row = document.createElement("div");
+                row.className = "chat-row" + (message.userName === "System" ? " system" : "");
+                row.innerHTML = `
+                    <div class="chat-meta">
+                        <strong>${message.userName}</strong>
+                        <span>${message.sentAt || ""}</span>
+                    </div>
+                    <div>${message.text}</div>
+                `;
+
+                chatBox.appendChild(row);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/hubs/game")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("NextQuestion", function (question) {
+                renderQuestion(question);
+            });
+
+            connection.on("RoundWon", function (data) {
+                clearInterval(timerInterval);
+                lockAnswers();
+                markCorrectAnswer(data.correctAnswerOptionId);
+                updatePlayerHud(data.scoreboard || []);
+                showRoundOverlay("✅", "CORRECT ANSWER LOCKED", `${data.winnerUserName} scored +${data.pointsAwarded}`);
+            });
+
+            connection.on("RoundTimedOut", function (data) {
+                clearInterval(timerInterval);
+                lockAnswers();
+                markCorrectAnswer(data.correctAnswerOptionId);
+                updatePlayerHud(data.scoreboard || []);
+                showRoundOverlay("❌", "TIME UP", `No winner. Correct answer has been revealed.`);
+            });
+
+            connection.on("AnswerResult", function (data) {
+                if (!selectedOptionId) {
+                    return;
+                }
+
+                const selectedButton = Array.from(document.querySelectorAll(".answer-tile")).find(function (button) {
+                    return parseInt(button.dataset.id, 10) === selectedOptionId;
+                });
+
+                if (!selectedButton) {
+                    return;
+                }
+
+                const icon = selectedButton.querySelector(".answer-icon");
+
+                if (data.isCorrect) {
+                    selectedButton.classList.add("correct");
+                    if (icon) {
+                        icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    }
+                    showFloatingPoints(data.pointsAwarded || 100);
+                } else {
+                    selectedButton.classList.add("wrong");
+                    if (icon) {
+                        icon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    }
+                }
+            });
+
+            connection.on("AnswerRejected", function (message) {
+                answeredThisRound = false;
+                unlockAnswers();
+                showRoundOverlay("⚠️", "ANSWER REJECTED", message);
+            });
+
+            connection.on("ChatMessageReceived", function (message) {
+                appendChat(message);
+            });
+
+            connection.on("PlayerConnected", function (name) {
+                appendChat({ userName: "System", text: `${name} joined`, sentAt: "" });
+            });
+
+            connection.on("PlayerDisconnected", function (name) {
+                appendChat({ userName: "System", text: `${name} left`, sentAt: "" });
+            });
+
+            connection.on("GameOver", function () {
+                showRoundOverlay("🏆", "MATCH COMPLETE", "Redirecting to final leaderboard...");
+                window.setTimeout(function () {
+                    window.location.href = `/Game/Summary?roomCode=${encodeURIComponent(roomCode)}`;
+                }, 2000);
+            });
+
+            connection.start().then(function () {
+                return connection.invoke("JoinGameRoom", roomCode);
+            }).catch(function (err) {
+                console.error(err.toString());
+                showRoundOverlay("⚠️", "CONNECTION ISSUE", "Trying to reconnect...");
+            });
+
+            @if (Model.ActiveQuestion != null)
+            {
+                <text>
+                    document.querySelectorAll(".answer-tile").forEach(function (button) {
+                        button.dataset.gqid = "@Model.ActiveQuestion.GameQuestionId";
+                    });
+                    startTimer(@Model.ActiveQuestion.TimeLimitSeconds);
+                </text>
+            }
+
+            updatePlayerHud([]);
+        })();
     </script>
 }

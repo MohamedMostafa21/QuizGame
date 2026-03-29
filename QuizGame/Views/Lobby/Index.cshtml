@@ -1,10 +1,73 @@
-﻿
+@* REDESIGNED: Lobby Mode Select - Premium Gaming UI *@
+@model QuizGame.ViewModels.LobbyIndexViewModel
+
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Lobby";
 }
-<div class="container-fluid text-center d-flex justify-content-center align-items-center gap-4">
-    <a class="btn btn-primary" asp-controller="Lobby" asp-action="Create">Create</a>
-    <a class="btn btn-secondary" asp-controller="Lobby" asp-action="Join">Join</a>
-</div>
 
+<section class="lobby-hub">
+    <div class="lobby-index-shell">
+        <div class="lobby-grid">
+        <article class="lobby-option auto-reveal">
+            <p class="section-kicker">Host Mode</p>
+            <h3><i class="fa-solid fa-tower-observation"></i> Create A Room</h3>
+            <p>Set the rules, invite players, and control launch timing from mission control.</p>
+            <a class="btn btn-neon" asp-controller="Lobby" asp-action="Create">
+                <i class="fa-solid fa-gamepad"></i> Host Now
+            </a>
+        </article>
 
+        <article class="lobby-option auto-reveal">
+            <p class="section-kicker">Player Mode</p>
+            <h3><i class="fa-solid fa-users"></i> Join A Room</h3>
+            <p>Drop in with a code and compete in real-time rounds for leaderboard dominance.</p>
+            <a class="btn btn-coral" asp-controller="Lobby" asp-action="Join">
+                <i class="fa-solid fa-rocket"></i> Join Match
+            </a>
+        </article>
+        </div>
+
+        <article class="pending-lobbies-panel glass-panel auto-reveal">
+            <div class="pending-lobbies-head">
+                <div>
+                    <p class="section-kicker mb-1">Open Rooms</p>
+                    <h3 class="mb-1">Pending Games</h3>
+                    <p class="mb-0">Join any waiting room instantly.</p>
+                </div>
+            </div>
+
+            @if (Model?.PendingGames != null && Model.PendingGames.Any())
+            {
+                <div class="pending-lobbies-list">
+                    @foreach (var game in Model.PendingGames)
+                    {
+                        <div class="pending-lobby-row">
+                            <div class="pending-room-main">
+                                <span class="pending-room-code">@game.RoomCode</span>
+                                <span class="pending-host">Host: @game.HostName</span>
+                            </div>
+
+                            <div class="pending-room-meta">
+                                <span><i class="fa-solid fa-layer-group"></i> @game.CategoryName</span>
+                                <span><i class="fa-solid fa-list-check"></i> @game.QuestionCount questions</span>
+                                <span><i class="fa-solid fa-users"></i> @game.PlayerCount players</span>
+                            </div>
+
+                            <form asp-controller="Lobby" asp-action="Join" method="post" class="pending-join-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="RoomCode" value="@game.RoomCode" />
+                                <button class="btn btn-coral pending-join-btn" type="submit">
+                                    <i class="fa-solid fa-right-to-bracket"></i> @(game.IsUserJoined ? "Rejoin" : "Join")
+                                </button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="placeholder-state">No pending games right now. Create one and invite players.</div>
+            }
+        </article>
+    </div>
+</section>

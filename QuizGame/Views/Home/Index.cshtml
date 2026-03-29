@@ -1,75 +1,235 @@
-@using Microsoft.AspNetCore.Identity
+@* REDESIGNED: Home Index - Lighter Neon Blue/Pink/Yellow UI *@
 @model IEnumerable<QuizGame.Models.User>
 
 @{
     ViewData["Title"] = "Home";
+    var players = (Model ?? Enumerable.Empty<QuizGame.Models.User>()).ToList();
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome to QuizGame</h1>
-    <p class="lead">Test your knowledge against other players in real-time trivia battles!</p>
-
-    <div class="mt-4">
-        <a class="btn btn-primary btn-lg me-2" asp-controller="Lobby" asp-action="Create">Create Game</a>
-        <a class="btn btn-secondary btn-lg" asp-controller="Lobby" asp-action="Join">Join Game</a>
+<section class="landing-page">
+    <div class="starfield-wrap">
+        <canvas id="starfieldCanvas"></canvas>
     </div>
-</div>
+    <div class="landing-glow landing-glow-cyan"></div>
+    <div class="landing-glow landing-glow-pink"></div>
 
-<div class="mt-5">
-    <h2>Global Leaderboard</h2>
-    <p class="text-muted">Top players by total accumulated score</p>
+    <div class="hero-grid">
+        <article class="hero-copy glass-panel auto-reveal">
+            <p class="hero-pill">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2l2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 16l-5.4 2.8 1-6.1L3.2 8.4l6.1-.9z"></path>
+                </svg>
+                Realtime Multiplayer Quiz Arena
+            </p>
 
-    @if (Model != null && Model.Any())
-    {
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Rank</th>
-                        <th>Player</th>
-                        <th>Total Score</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var user in Model.Select((user, index) => new { user, index = index + 1 }))
-                    {
+            <h1 class="hero-headline">Quiz Brighter. Play Faster. <span class="accent">Own The Podium.</span></h1>
+            <p class="hero-subtitle" id="heroSubtitle">
+                Host in seconds, light up the room with live score swings, and turn every round into a fast, colorful showdown.
+            </p>
+
+            <div class="hero-actions">
+                <a class="btn btn-neon" asp-controller="Lobby" asp-action="Create">
+                    <i class="fa-solid fa-gamepad"></i> Host a Game
+                </a>
+                <a class="btn btn-coral" asp-controller="Lobby" asp-action="Join">
+                    <i class="fa-solid fa-rocket"></i> Join a Room
+                </a>
+            </div>
+
+            <div class="hero-stat-strip">
+                <div class="hero-stat">
+                    <strong>100%</strong>
+                    <span>Live scoreboard sync</span>
+                </div>
+                <div class="hero-stat">
+                    <strong>1 Tap</strong>
+                    <span>Join flow for players</span>
+                </div>
+                <div class="hero-stat">
+                    <strong>Fast</strong>
+                    <span>Round transitions</span>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <div class="feature-row">
+        <article class="feature-card glass-panel auto-reveal">
+            <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M13 2L4 13h6l-1 9 9-11h-6z"></path>
+                </svg>
+            </div>
+            <h4>Real-Time Rush</h4>
+            <p>No laggy rounds. Every answer and score update is synchronized live via SignalR.</p>
+        </article>
+
+        <article class="feature-card glass-panel auto-reveal">
+            <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 20h16v2H4zM6 10h3v8H6zM11 6h3v12h-3zM16 3h3v15h-3z"></path>
+                </svg>
+            </div>
+            <h4>Dynamic Ranking</h4>
+            <p>Track momentum instantly with dynamic rank changes after each question.</p>
+        </article>
+
+        <article class="feature-card glass-panel auto-reveal">
+            <div class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                    <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                    <circle cx="12" cy="12" r="1.6"></circle>
+                </svg>
+            </div>
+            <h4>Focused Rounds</h4>
+            <p>Balanced rounds, timed pressure, and clear feedback to keep gameplay exciting.</p>
+        </article>
+    </div>
+
+    <section class="leaderboard-home glass-panel auto-reveal" id="leaderboardSection">
+        <div class="leaderboard-home-head">
+            <div>
+                <p class="section-kicker mb-1">Global Ranking</p>
+                <h3 class="mb-1">Leaderboard</h3>
+                <p class="mb-0">Climb the ranks by winning more rounds and maintaining streaks.</p>
+            </div>
+            <a class="btn btn-glass" asp-controller="Lobby" asp-action="Join">
+                <i class="fa-solid fa-play"></i> Join A Match
+            </a>
+        </div>
+
+        @if (players.Any())
+        {
+            <div class="table-responsive">
+                <table class="table leaderboard-table mb-0">
+                    <thead>
                         <tr>
-                            <td>
-                                @if (user.index == 1)
-                                {
-                                    <span class="badge bg-warning text-dark">🥇 @user.index</span>
-                                }
-                                else if (user.index == 2)
-                                {
-                                    <span class="badge bg-secondary">🥈 @user.index</span>
-                                }
-                                else if (user.index == 3)
-                                {
-                                    <span class="badge bg-brown">🥉 @user.index</span>
-                                }
-                                else
-                                {
-                                    <span>@user.index</span>
-                                }
-                            </td>
-                            <td>@user.user.UserName</td>
-                            <td><strong>@user.user.TotalScore</strong></td>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Total Score</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-info">
-            No players yet. Be the first to play and top the leaderboard!
-        </div>
-    }
-</div>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in players.Select((entry, index) => new { entry, rank = index + 1 }))
+                        {
+                            <tr>
+                                <td>
+                                    @if (row.rank == 1)
+                                    {
+                                        <span class="home-rank-badge first">#1</span>
+                                    }
+                                    else if (row.rank == 2)
+                                    {
+                                        <span class="home-rank-badge second">#2</span>
+                                    }
+                                    else if (row.rank == 3)
+                                    {
+                                        <span class="home-rank-badge third">#3</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="home-rank-badge">#@row.rank</span>
+                                    }
+                                </td>
+                                <td>@row.entry.UserName</td>
+                                <td class="home-score">@row.entry.TotalScore</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="placeholder-state">No leaderboard data yet. Play a few rounds to initialize rankings.</div>
+        }
+    </section>
+</section>
 
-<div class="mt-4 text-center">
-    <p class="text-muted">
-        <small>Score accumulates across all completed games. Play more to climb the ranks!</small>
-    </p>
-</div>
+@section Scripts {
+    <script>
+        (function () {
+            const subtitle = document.getElementById("heroSubtitle");
+            if (subtitle) {
+                window.setTimeout(() => subtitle.classList.add("show"), 500);
+            }
+
+            const canvas = document.getElementById("starfieldCanvas");
+            if (!canvas) {
+                return;
+            }
+
+            const context = canvas.getContext("2d");
+            if (!context) {
+                return;
+            }
+
+            const stars = [];
+            const STAR_COUNT = 120;
+            const palette = ["74, 216, 255", "255, 216, 76", "255, 118, 195"];
+
+            function resize() {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            }
+
+            function createStar() {
+                return {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 1.8 + 0.4,
+                    speed: Math.random() * 0.18 + 0.04,
+                    alpha: Math.random() * 0.7 + 0.2,
+                    drift: Math.random() * 0.22 - 0.11,
+                    color: palette[Math.floor(Math.random() * palette.length)]
+                };
+            }
+
+            function initStars() {
+                stars.length = 0;
+                for (let i = 0; i < STAR_COUNT; i++) {
+                    stars.push(createStar());
+                }
+            }
+
+            function animate() {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = 0; i < stars.length; i++) {
+                    const star = stars[i];
+                    star.y += star.speed;
+                    star.x += star.drift;
+
+                    if (star.y > canvas.height + 2) {
+                        star.y = -2;
+                        star.x = Math.random() * canvas.width;
+                    }
+
+                    if (star.x > canvas.width + 2) {
+                        star.x = -2;
+                    }
+
+                    if (star.x < -2) {
+                        star.x = canvas.width + 2;
+                    }
+
+                    context.beginPath();
+                    context.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    context.fillStyle = `rgba(${star.color}, ${star.alpha})`;
+                    context.fill();
+                }
+
+                window.requestAnimationFrame(animate);
+            }
+
+            resize();
+            initStars();
+            animate();
+            window.addEventListener("resize", function () {
+                resize();
+                initStars();
+            });
+        })();
+    </script>
+}

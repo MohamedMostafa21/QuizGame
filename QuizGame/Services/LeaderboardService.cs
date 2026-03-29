@@ -142,6 +142,8 @@ namespace QuizGame.Services
 
             var gameQuestions = _gameQuestionRepository.GetAll()
                 .Where(gq => gq.GameId == game.Id)
+                .Include(gq => gq.Question)
+                    .ThenInclude(q => q.AnswerOptions)
                 .OrderBy(gq => gq.Order)
                 .ToList();
 
@@ -152,10 +154,12 @@ namespace QuizGame.Services
 
             foreach (var gq in gameQuestions)
             {
+                var question = gq.Question;
 
-                var question = _gameQuestionRepository.Get(gq.Id)?.Question;
-
-                if (question == null) continue;
+                if (question == null)
+                {
+                    continue;
+                }
 
                 string? winnerName = null;
 

@@ -21,7 +21,8 @@ namespace QuizGame.Controllers
         [HttpGet]
         public IActionResult Index()
         {
-            return View();
+            string userId = _userManager.GetUserId(User) ?? string.Empty;
+            return View(_gameService.GetLobbyIndexViewModel(userId));
         }
         [HttpGet]
         public IActionResult Create()
