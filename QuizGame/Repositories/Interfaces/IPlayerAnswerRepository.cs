@@ -1,9 +1,13 @@
 ﻿using QuizGame.Models;
 
-namespace QuizGame.Repositories.Interfaces
+namespace QuizGame.Repositories.Interfaces;
+
+public interface IPlayerAnswerRepository : IRepository<PlayerAnswer>
 {
-    public interface IPlayerAnswerRepository : IRepository<PlayerAnswer>
-    {
-        bool HasAnswered(int gameQuestionId, string userId);
-    }
+    // Sync
+    bool HasAnswered(int gameQuestionId, string userId);
+
+    // Async
+    Task<bool> HasAnsweredAsync(int gameQuestionId, string userId);
+    Task AddAsync(PlayerAnswer answer);
 }

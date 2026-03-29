@@ -5,6 +5,8 @@ using QuizGame.Models;
 using QuizGame.Repositories.Implementations;
 using QuizGame.Repositories.Interfaces;
 using QuizGame.Services;
+using QuizGame.Services.Implementations;
+using QuizGame.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +29,8 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<GameService>();
 builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<IAnswerService, AnswerService>();
+builder.Services.AddSingleton<RoundTimerService>();
 builder.Services.AddScoped<LeaderboardService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
@@ -36,6 +40,7 @@ builder.Services.AddScoped<IGamePlayerRepository, GamePlayerRepository>();
 builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
 builder.Services.AddScoped<IPlayerAnswerRepository, PlayerAnswerRepository>();
 builder.Services.AddScoped<IAnswerOptionRepository, AnswerOptionRepository>();
+
 
 
 var app = builder.Build();

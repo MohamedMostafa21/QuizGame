@@ -139,12 +139,12 @@
         });
 
         connection.on("NavigateToGame", function (roomCode) {
-        window.location.href = `/Game/Index?roomCode=${roomCode}`;
+        window.location.href = `/Game/Play?roomCode=${encodeURIComponent(roomCode)}`;
         });
 
         connection.start().then(function () {
         console.log("Connected to the Player Hub.");
-        return connection.invoke("JoinRoomGroup", "@Model.RoomCode", "@Model.UserId");
+        return connection.invoke("JoinGameRoom", "@Model.RoomCode");
         }).catch(function (err) {
         console.error(err.toString());
         });

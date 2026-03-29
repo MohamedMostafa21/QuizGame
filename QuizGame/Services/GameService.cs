@@ -4,6 +4,7 @@ using QuizGame.Hubs;
 using QuizGame.Models;
 using QuizGame.Repositories.Implementations;
 using QuizGame.Repositories.Interfaces;
+using QuizGame.Services.Implementations;
 using QuizGame.ViewModels;
 using System;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace QuizGame.Services
         private readonly IGamePlayerRepository _gamePlayerRepository;
         private readonly UserManager<User> _userManager;
         private readonly IHubContext<GameHub> _gameHubContext;
+        private readonly RoundTimerService _roundTimerService;
 
         public GameService(
             ICategoryRepository categoryRepository,
@@ -27,7 +29,8 @@ namespace QuizGame.Services
             IGameQuestionRepository gameQuestionRepository,
             IGamePlayerRepository gamePlayerRepository,
             UserManager<User> userManager,
-            IHubContext<GameHub> gameHubContext)
+            IHubContext<GameHub> gameHubContext,
+            RoundTimerService roundTimerService)
 
         {
             _categoryRepository = categoryRepository;
@@ -37,6 +40,7 @@ namespace QuizGame.Services
             _gamePlayerRepository = gamePlayerRepository;
             _userManager = userManager;
             _gameHubContext = gameHubContext;
+            _roundTimerService = roundTimerService;
         }
 
         public CreateGameViewModel GetCreateGameViewModel()
@@ -211,7 +215,15 @@ namespace QuizGame.Services
             _gameRepository.Update(game);
             _gameRepository.Save();
 
+            GameQuestion? firstQuestion = _gameQuestionRepository.GetNextPending(game.Id);
+            if (firstQuestion == null)
+                throw new Exception("No questions available for this game.");
+
+            _gameQuestionRepository.Activate(firstQuestion.Id);
+            _gameQuestionRepository.Save();
+
             _gameHubContext.Clients.Group(vm.RoomCode).SendAsync("NavigateToGame", vm.RoomCode);
+            _roundTimerService.StartTimer(firstQuestion.Id, game.Id, vm.RoomCode, firstQuestion.Question.TimeLimitSeconds);
         }
 
         internal void LeaveGame(string roomCode, string? userId)
