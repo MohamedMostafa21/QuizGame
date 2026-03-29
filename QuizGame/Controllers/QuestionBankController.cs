@@ -38,7 +38,7 @@ public class QuestionBankController : Controller
 
         if (vm.EditingCategoryId.HasValue)
         {
-            var updateResult = _contentManagementService.UpdateCategory(vm.EditingCategoryId.Value, vm.Name);
+            var updateResult = _contentManagementService.UpdateCategory(vm.EditingCategoryId.Value, vm.Name, vm.Description);
             if (!updateResult.Succeeded)
             {
                 ModelState.AddModelError(string.Empty, updateResult.Message);
@@ -49,7 +49,7 @@ public class QuestionBankController : Controller
             return RedirectToAction(nameof(Categories), new { categoryId = vm.EditingCategoryId.Value });
         }
 
-        var createResult = _contentManagementService.CreateCategory(vm.Name);
+        var createResult = _contentManagementService.CreateCategory(vm.Name, vm.Description);
         if (!createResult.Succeeded)
         {
             ModelState.AddModelError(string.Empty, createResult.Message);
@@ -234,6 +234,7 @@ public class QuestionBankController : Controller
             {
                 CategoryId = x.CategoryId,
                 CategoryName = x.CategoryName,
+                Description = x.Description,
                 QuestionCount = x.QuestionCount
             })
             .ToList();
@@ -253,6 +254,7 @@ public class QuestionBankController : Controller
         }
 
         vm.SelectedCategoryName = selectedCategory.CategoryName;
+        vm.SelectedCategoryDescription = selectedCategory.Description;
         vm.SelectedCategoryQuestions = _contentManagementService
             .GetQuestionsForCategory(selectedCategory.CategoryId)
             .Select(x => new CategoryQuestionListItemViewModel
@@ -282,6 +284,11 @@ public class QuestionBankController : Controller
         if (source == null || string.IsNullOrWhiteSpace(source.Name))
         {
             vm.Name = editingCategory.CategoryName;
+        }
+
+        if (source == null || string.IsNullOrWhiteSpace(source.Description))
+        {
+            vm.Description = editingCategory.Description;
         }
 
         return vm;

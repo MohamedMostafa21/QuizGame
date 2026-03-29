@@ -11,6 +11,13 @@ using System.Linq;
 
 namespace QuizGame.Services
 {
+    public class CreateGameValidationResult
+    {
+        public bool Succeeded { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public int MaxQuestionCount { get; set; }
+    }
+
     public class GameService
     {
         private readonly ICategoryRepository _categoryRepository;
@@ -45,9 +52,87 @@ namespace QuizGame.Services
 
         public CreateGameViewModel GetCreateGameViewModel()
         {
-            return new CreateGameViewModel
+            CreateGameViewModel vm = new CreateGameViewModel
             {
-                Categories = _categoryRepository.GetAll().ToList()
+                QuestionCount = 10
+            };
+
+            PopulateCreateGameViewModel(vm);
+            return vm;
+        }
+
+        public void PopulateCreateGameViewModel(CreateGameViewModel vm)
+        {
+            Dictionary<int, int> questionCounts = _questionRepository
+                .GetAll()
+                .GroupBy(q => q.CategoryId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            List<Category> categories = _categoryRepository
+                .GetAll()
+                .OrderBy(c => c.Name)
+                .ToList();
+
+            vm.Packages = categories
+                .Select(category => new GamePackageOptionViewModel
+                {
+                    CategoryId = category.Id,
+                    Name = category.Name,
+                    Description = category.Description ?? string.Empty,
+                    AvailableQuestionCount = questionCounts.TryGetValue(category.Id, out int count) ? count : 0
+                })
+                .ToList();
+        }
+
+        public CreateGameValidationResult ValidateCreateGameRequest(CreateGameViewModel vm)
+        {
+            if (!vm.CategoryId.HasValue)
+            {
+                return new CreateGameValidationResult
+                {
+                    Succeeded = false,
+                    Message = "Please choose a package."
+                };
+            }
+
+            Category? category = _categoryRepository.Get(vm.CategoryId.Value);
+            if (category == null)
+            {
+                return new CreateGameValidationResult
+                {
+                    Succeeded = false,
+                    Message = "Selected package was not found. Please choose another package."
+                };
+            }
+
+            int availableQuestionCount = _questionRepository
+                .GetAll()
+                .Count(q => q.CategoryId == vm.CategoryId.Value);
+
+            if (availableQuestionCount == 0)
+            {
+                return new CreateGameValidationResult
+                {
+                    Succeeded = false,
+                    Message = "This package has no questions yet. Choose another package or add more questions first.",
+                    MaxQuestionCount = 0
+                };
+            }
+
+            if (vm.QuestionCount > availableQuestionCount)
+            {
+                return new CreateGameValidationResult
+                {
+                    Succeeded = false,
+                    Message = $"Only {availableQuestionCount} question(s) are available in this package.",
+                    MaxQuestionCount = availableQuestionCount
+                };
+            }
+
+            return new CreateGameValidationResult
+            {
+                Succeeded = true,
+                MaxQuestionCount = availableQuestionCount
             };
         }
 
@@ -74,7 +159,7 @@ namespace QuizGame.Services
 
                     string categoryName = game.CategoryId.HasValue && categoryNames.TryGetValue(game.CategoryId.Value, out string? mappedCategory)
                         ? mappedCategory
-                        : "All Categories";
+                        : "Mixed Package";
 
                     return new PendingGameViewModel
                     {
@@ -97,9 +182,24 @@ namespace QuizGame.Services
 
         public string CreateGame(CreateGameViewModel vm, string hostId)
         {
+            CreateGameValidationResult validationResult = ValidateCreateGameRequest(vm);
+            if (!validationResult.Succeeded)
+            {
+                throw new InvalidOperationException(validationResult.Message);
+            }
+
+            List<Question> questions = _questionRepository
+                .GetRandomSample(vm.CategoryId, vm.QuestionCount)
+                .ToList();
+
+            if (questions.Count != vm.QuestionCount)
+            {
+                throw new InvalidOperationException("Unable to create game with the requested question count. Please try again.");
+            }
+
             string roomCode = GenerateUniqueRoomCode();
             Game game = CreateAndSaveGame(vm, hostId, roomCode);
-            CreateAndSaveGameQuestions(vm, game);
+            CreateAndSaveGameQuestions(game, questions);
             AddHostAsPlayer(game, hostId);
             return roomCode;
         }
@@ -133,12 +233,8 @@ namespace QuizGame.Services
             return game;
         }
 
-        private void CreateAndSaveGameQuestions(CreateGameViewModel vm, Game game)
+        private void CreateAndSaveGameQuestions(Game game, List<Question> questions)
         {
-            List<Question> questions = _questionRepository
-                .GetRandomSample(vm.CategoryId, vm.QuestionCount)
-                .ToList();
-
             List<GameQuestion> gameQuestions = MapToGameQuestions(questions, game.Id);
 
             _gameQuestionRepository.CreateBulk(gameQuestions);
@@ -211,7 +307,7 @@ namespace QuizGame.Services
                 UserId = userId,
                 HostName = hostUser?.UserName,
                 RoomCode = game.RoomCode,
-                CategoryName = category?.Name ?? "All Categories",
+                CategoryName = category?.Name ?? "Mixed Package",
                 QuestionCount = game.QuestionCount,
                 GamePlayers = players,
             };

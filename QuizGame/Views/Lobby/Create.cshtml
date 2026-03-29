@@ -3,14 +3,17 @@
 
 @{
     ViewData["Title"] = "Host Setup";
-    var categoryList = new SelectList(Model.Categories, "Id", "Name");
+    var selectedPackage = Model.Packages.FirstOrDefault(p => p.CategoryId == Model.CategoryId);
+    var selectedMax = selectedPackage?.AvailableQuestionCount ?? 0;
+    var inputMax = selectedMax > 0 ? selectedMax : 200;
+    var hasSelectablePackages = Model.Packages.Any(p => p.AvailableQuestionCount > 0);
 }
 
 <section class="host-page">
     <article class="mission-control glass-panel auto-reveal">
         <p class="section-kicker">Mission Control</p>
         <h1 class="section-title">Configure Your Match</h1>
-        <p class="muted-label mb-3">Tune the round, invite players, and launch when your squad is ready.</p>
+        <p class="muted-label mb-3">Choose a player-made package, set question count, then launch when your squad is ready.</p>
 
         <form asp-controller="Lobby" asp-action="Create" method="post" class="host-form">
             @Html.AntiForgeryToken()
@@ -18,10 +21,42 @@
             <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
             <div class="mb-3">
-                <label asp-for="CategoryId" class="form-label">Question Category</label>
-                <select class="form-select" asp-for="CategoryId" asp-items="categoryList">
-                    <option value="">All Categories</option>
-                </select>
+                <label asp-for="CategoryId" class="form-label">Question Package</label>
+                <input type="hidden" asp-for="CategoryId" id="selectedPackageId" />
+
+                @if (Model.Packages.Any())
+                {
+                    <div class="package-grid" id="packageGrid">
+                        @foreach (var package in Model.Packages)
+                        {
+                            var isSelected = Model.CategoryId == package.CategoryId;
+                            var hasQuestions = package.AvailableQuestionCount > 0;
+
+                            <button type="button"
+                                    class="package-card @(isSelected ? "is-selected" : string.Empty)"
+                                    data-package-id="@package.CategoryId"
+                                    data-package-max="@package.AvailableQuestionCount"
+                                    @(hasQuestions ? null : "disabled")>
+                                <span class="package-name">@package.Name</span>
+                                <span class="package-description">@(string.IsNullOrWhiteSpace(package.Description) ? "No description yet." : package.Description)</span>
+                                <span class="package-meta">
+                                    <i class="fa-solid fa-list-check"></i>
+                                    @(hasQuestions ? $"{package.AvailableQuestionCount} available" : "No questions yet")
+                                </span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (!hasSelectablePackages)
+                    {
+                        <div class="alert alert-danger mt-2 mb-0">Packages exist, but none have questions yet. Add questions before hosting.</div>
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-danger mb-0">No packages found. Create one in Question Bank first.</div>
+                }
+
                 <span asp-validation-for="CategoryId" class="text-danger"></span>
             </div>
 
@@ -29,14 +64,20 @@
                 <label asp-for="QuestionCount" class="form-label">Question Count</label>
                 <input type="number"
                        min="1"
-                       max="20"
+                       max="@inputMax"
                        class="form-control"
+                       id="questionCountInput"
                        asp-for="QuestionCount"
-                       placeholder="Choose 1 to 20" />
+                       placeholder="Choose based on package max" />
+                <small class="form-text text-muted" id="packageMaxHint">
+                    @(selectedPackage != null
+                        ? $"Max for {selectedPackage.Name}: {selectedMax} question(s)."
+                        : "Select a package to see the max number of questions.")
+                </small>
                 <span asp-validation-for="QuestionCount" class="text-danger"></span>
             </div>
 
-            <button type="submit" class="btn btn-neon btn-pulse w-100 mt-2">
+            <button type="submit" class="btn btn-neon btn-pulse w-100 mt-2" @(hasSelectablePackages ? null : "disabled")>
                 <i class="fa-solid fa-circle-plus"></i> Create Room
             </button>
         </form>
@@ -54,4 +95,48 @@
 
 @section Scripts {
     @await Html.PartialAsync("_ValidationScriptsPartial")
+
+    <script>
+        (function () {
+            const packageGrid = document.getElementById("packageGrid");
+            const selectedPackageIdInput = document.getElementById("selectedPackageId");
+            const questionCountInput = document.getElementById("questionCountInput");
+            const packageMaxHint = document.getElementById("packageMaxHint");
+
+            if (!packageGrid || !selectedPackageIdInput || !questionCountInput || !packageMaxHint) {
+                return;
+            }
+
+            const packageCards = Array.from(packageGrid.querySelectorAll(".package-card"));
+
+            function setSelection(packageId, maxCount, packageName) {
+                selectedPackageIdInput.value = packageId;
+                questionCountInput.max = maxCount;
+
+                if (Number(questionCountInput.value) > Number(maxCount)) {
+                    questionCountInput.value = maxCount;
+                }
+
+                packageMaxHint.textContent = `Max for ${packageName}: ${maxCount} question(s).`;
+
+                packageCards.forEach(card => {
+                    card.classList.toggle("is-selected", card.dataset.packageId === String(packageId));
+                });
+            }
+
+            packageCards.forEach(card => {
+                card.addEventListener("click", function () {
+                    if (card.disabled) {
+                        return;
+                    }
+
+                    const packageId = card.dataset.packageId;
+                    const maxCount = card.dataset.packageMax;
+                    const packageName = card.querySelector(".package-name")?.textContent?.trim() || "Package";
+
+                    setSelection(packageId, maxCount, packageName);
+                });
+            });
+        })();
+    </script>
 }

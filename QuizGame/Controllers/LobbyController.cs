@@ -32,16 +32,36 @@ namespace QuizGame.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Create(CreateGameViewModel vm)
         {
             if (!ModelState.IsValid)
             {
-                vm.Categories = _gameService.GetCreateGameViewModel().Categories;
+                _gameService.PopulateCreateGameViewModel(vm);
                 return View(vm);
             }
 
-            string hostId = _userManager.GetUserId(User);
-            string roomCode = _gameService.CreateGame(vm, hostId);
+            CreateGameValidationResult validationResult = _gameService.ValidateCreateGameRequest(vm);
+            if (!validationResult.Succeeded)
+            {
+                ModelState.AddModelError(nameof(vm.QuestionCount), validationResult.Message);
+                _gameService.PopulateCreateGameViewModel(vm);
+                return View(vm);
+            }
+
+            string hostId = _userManager.GetUserId(User) ?? string.Empty;
+            string roomCode;
+
+            try
+            {
+                roomCode = _gameService.CreateGame(vm, hostId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _gameService.PopulateCreateGameViewModel(vm);
+                return View(vm);
+            }
 
             return RedirectToAction("Room", new { roomCode });
         }
