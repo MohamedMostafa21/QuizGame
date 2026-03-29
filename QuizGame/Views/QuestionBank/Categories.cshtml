@@ -1,0 +1,195 @@
+@model QuizGame.ViewModels.CreateCategoryViewModel
+
+@{
+    ViewData["Title"] = "Add Categories";
+}
+
+<section class="manage-page">
+    <div class="manage-form-layout">
+        <article class="manage-form-card glass-panel auto-reveal">
+            <p class="section-kicker">Question Bank</p>
+            <h1 class="section-title">@(Model.EditingCategoryId.HasValue ? "Edit Category" : "Add Categories")</h1>
+            <p class="muted-label mb-3">Create, update, and maintain category names for cleaner game setup.</p>
+
+            @if (TempData["ManageSuccess"] != null)
+            {
+                <div class="alert alert-info">@TempData["ManageSuccess"]</div>
+            }
+
+            @if (TempData["ManageError"] != null)
+            {
+                <div class="alert alert-danger">@TempData["ManageError"]</div>
+            }
+
+            <form asp-action="Categories" method="post" class="manage-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="SelectedCategoryId" />
+                <input type="hidden" asp-for="EditingCategoryId" />
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label"></label>
+                    <input asp-for="Name" class="form-control" placeholder="e.g. Geography" maxlength="60" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div class="manage-actions">
+                    <button type="submit" class="btn btn-neon">
+                        <i class="fa-solid @(Model.EditingCategoryId.HasValue ? "fa-pen" : "fa-circle-plus")"></i>
+                        @(Model.EditingCategoryId.HasValue ? "Update Category" : "Save Category")
+                    </button>
+                    @if (Model.EditingCategoryId.HasValue)
+                    {
+                        <a class="btn btn-glass" asp-action="Categories" asp-route-categoryId="@Model.SelectedCategoryId">
+                            <i class="fa-solid fa-xmark"></i> Cancel Edit
+                        </a>
+                    }
+                    <a class="btn btn-glass" asp-controller="QuestionBank" asp-action="Questions">
+                        <i class="fa-solid fa-arrow-right"></i> Go To Questions
+                    </a>
+                </div>
+            </form>
+        </article>
+
+        <aside class="manage-help-card glass-panel auto-reveal">
+            <p class="section-kicker">Tips</p>
+            <ul>
+                <li>Use short, clear names for categories.</li>
+                <li>Avoid duplicates to keep setup clean.</li>
+                <li>Add at least one category before adding questions.</li>
+            </ul>
+        </aside>
+    </div>
+
+    <article class="manage-library-card glass-panel auto-reveal">
+        <div class="manage-library-head">
+            <div>
+                <p class="section-kicker mb-1">Category Library</p>
+                <h2 class="section-title mb-1">Questions Per Category</h2>
+                <p class="muted-label mb-0">Click a category to view all questions in it.</p>
+            </div>
+        </div>
+
+        @if (Model.CategoryQuestionCounts.Any())
+        {
+            <div class="category-count-grid">
+                @foreach (var category in Model.CategoryQuestionCounts)
+                {
+                    var isSelected = Model.SelectedCategoryId == category.CategoryId;
+                    <div class="category-count-card @(isSelected ? "is-selected" : string.Empty)">
+                        <a class="category-count-main"
+                           asp-action="Categories"
+                           asp-route-categoryId="@category.CategoryId">
+                            <span class="category-count-name">@category.CategoryName</span>
+                            <span class="category-count-value">@category.QuestionCount questions</span>
+                        </a>
+
+                        <div class="category-count-actions">
+                            <a class="btn btn-sm btn-glass manage-action-btn"
+                               asp-action="Categories"
+                               asp-route-categoryId="@Model.SelectedCategoryId"
+                               asp-route-editCategoryId="@category.CategoryId">
+                                <i class="fa-solid fa-pen"></i> Edit
+                            </a>
+
+                            <form asp-action="DeleteCategory" method="post"
+                                  onsubmit="return confirm('Delete this category? This only works when it has no questions and no linked games.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="categoryId" value="@category.CategoryId" />
+                                <input type="hidden" name="selectedCategoryId" value="@Model.SelectedCategoryId" />
+                                <button type="submit" class="btn btn-sm btn-danger manage-action-btn">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="placeholder-state">No categories yet. Add one above to get started.</div>
+        }
+    </article>
+
+    <article class="manage-library-card glass-panel auto-reveal">
+        @if (Model.SelectedCategoryId.HasValue)
+        {
+            <div class="manage-library-head">
+                <div>
+                    <p class="section-kicker mb-1">Category Questions</p>
+                    <h2 class="section-title mb-1">@Model.SelectedCategoryName</h2>
+                    <p class="muted-label mb-0">Showing @Model.SelectedCategoryQuestions.Count question(s).</p>
+                </div>
+            </div>
+
+            @if (Model.SelectedCategoryQuestions.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table questions-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Question</th>
+                                <th>Points</th>
+                                <th>Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var question in Model.SelectedCategoryQuestions)
+                            {
+                                <tr>
+                                    <td>@question.QuestionId</td>
+                                    <td>@question.QuestionText</td>
+                                    <td>@question.Points</td>
+                                    <td>@question.TimeLimitSeconds s</td>
+                                    <td>
+                                        @if (question.IsInUse)
+                                        {
+                                            <span class="badge text-bg-secondary">In Use</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="manage-row-actions">
+                                                <a class="btn btn-sm btn-glass manage-action-btn"
+                                                   asp-action="EditQuestion"
+                                                   asp-route-questionId="@question.QuestionId"
+                                                   asp-route-categoryId="@Model.SelectedCategoryId">
+                                                    <i class="fa-solid fa-pen"></i> Edit
+                                                </a>
+
+                                                <form asp-action="DeleteQuestion" method="post"
+                                                      onsubmit="return confirm('Delete this question permanently?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="questionId" value="@question.QuestionId" />
+                                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                    <button type="submit" class="btn btn-sm btn-danger manage-action-btn">
+                                                        <i class="fa-solid fa-trash"></i> Delete
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="placeholder-state">This category has no questions yet.</div>
+            }
+        }
+        else
+        {
+            <div class="placeholder-state">Select a category above to see its questions.</div>
+        }
+    </article>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

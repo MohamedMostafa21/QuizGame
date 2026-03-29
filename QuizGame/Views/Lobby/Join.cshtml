@@ -1,18 +1,59 @@
-﻿@model QuizGame.ViewModels.JoinRoomViewModel
+@* REDESIGNED: Join Room - Premium Gaming UI *@
+@model QuizGame.ViewModels.JoinRoomViewModel
+
 @{
-    ViewData["Title"] = "Join";
+    ViewData["Title"] = "Join Room";
+    var hasErrors = !ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0;
 }
 
-<form asp-controller="Lobby" asp-action="Join" method="post" class="form">
-    @Html.AntiForgeryToken()
-  <div asp-validation-summary="All" class="text-danger"></div>
-	<span class="form-label">Enter the room code:</span>
-    <input class="form-control" type="text" asp-for="RoomCode"/>
-    <input class="form-control btn btn-success" type="submit"/>
-</form>
+<section class="join-page">
+    <article class="join-card glass-panel auto-reveal @(hasErrors ? "join-error" : string.Empty)" id="joinCard">
+        <p class="section-kicker">Quick Entry</p>
+        <h1 class="section-title">Enter Room Code</h1>
+        <p class="muted-label mb-3">Type the 5-character code from your host and jump into the match.</p>
 
-<a class="btn btn-secondary mt-2" asp-action="Index">Back to List</a>
+        <form asp-controller="Lobby" asp-action="Join" method="post" class="join-form">
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="RoomCode" class="form-label">Room Code</label>
+                <input asp-for="RoomCode"
+                       class="form-control join-code-input"
+                       maxlength="5"
+                       autocomplete="off"
+                       spellcheck="false"
+                       placeholder="A1B2C" />
+                <span asp-validation-for="RoomCode" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="alias">Nickname (display only)</label>
+                <input id="alias"
+                       type="text"
+                       class="form-control join-nickname-input"
+                       maxlength="18"
+                       placeholder="Your battle name" />
+            </div>
+
+            <button class="btn btn-coral w-100" type="submit">
+                <i class="fa-solid fa-rocket"></i> Join Game
+            </button>
+        </form>
+    </article>
+</section>
 
 @section Scripts {
     @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script>
+        (function () {
+            const joinCard = document.getElementById("joinCard");
+            if (joinCard && joinCard.classList.contains("join-error")) {
+                joinCard.addEventListener("animationend", function () {
+                    joinCard.classList.remove("join-error");
+                }, { once: true });
+            }
+        })();
+    </script>
 }

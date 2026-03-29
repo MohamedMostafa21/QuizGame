@@ -2,58 +2,42 @@
 @model GameViewModel
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Question";
 }
 
-<div class="container mt-5">
+<section class="lobby-page-shell">
+    <div class="lobby-form-card surface-card auto-reveal">
+        <p class="section-kicker">Question</p>
+        <h1 class="section-title">Make Your Choice</h1>
+        <p class="muted-label mb-3">Select one answer, then lock it in.</p>
 
-    <!-- Question Card -->
-    <div class="card shadow-sm">
-        <div class="card-body">
+        <form asp-action="SubmitAnswer" asp-controller="Game" method="post">
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
-            <h4 class="card-title mb-4">
-                @Model.Question.Question.Text
-            </h4>
+            <div class="question-box mb-3">@Model.Question.Question.Text</div>
 
-            <form asp-action="SubmitAnswer" asp-controller="Game" method="post">
+            <div class="answers-grid mb-3">
+                @for (int i = 0; i < Model.Options.Count; i++)
+                {
+                    <label class="answer-btn d-flex align-items-center gap-2" for="option_@Model.Options[i].Id">
+                        <input class="form-check-input"
+                               type="radio"
+                               asp-for="Options[i].Id"
+                               id="option_@Model.Options[i].Id" />
+                        <span>@Model.Options[i].Text</span>
+                    </label>
+                }
+            </div>
 
-                <!-- Validation -->
-                <div asp-validation-summary="All" class="text-danger mb-3"></div>
+            <input type="hidden" asp-for="Question.Id" />
+            <input type="hidden" asp-for="Player.Id" />
 
-                <!-- Options -->
-                <div class="mb-4">
-                    @for (int i = 0; i < Model.Options.Count; i++)
-                    {
-                        <div class="form-check mb-2">
-
-                            <input class="form-check-input"
-                                   type="radio"
-                                   asp-for="Options[i].Id"
-                                   id="option_@Model.Options[i].Id" />
-
-                            <label class="form-check-label" for="option_@Model.Options[i].Id">
-                                @Model.Options[i].Text
-                            </label>
-
-                        </div>
-                    }
-                </div>
-
-                <!-- Hidden fields -->
-                <input type="hidden" asp-for="Question.Id" />
-                <input type="hidden" asp-for="Player.Id" />
-
-                <!-- Submit Button -->
-                <button type="submit" class="btn btn-primary w-100" id="submitBtn" disabled>
-                    Submit Answer
-                </button>
-
-            </form>
-
-        </div>
+            <button type="submit" class="btn app-btn app-btn-primary w-100" id="submitBtn" disabled>
+                Submit Answer
+            </button>
+        </form>
     </div>
-
-</div>
+</section>
 
 @section Scripts {
     <!-- Validation Scripts -->

@@ -1,7 +1,14 @@
 ﻿
 @{
-    ViewData["Title"] = "View";
+    ViewData["Title"] = "Game In Progress";
 }
 
-<h1>Game Already Started</h1>
+<section class="lobby-page-shell">
+    <div class="lobby-form-card surface-card auto-reveal text-center">
+        <p class="section-kicker">Heads Up</p>
+        <h1 class="section-title">This Game Already Started</h1>
+        <p class="muted-label">Join another room or wait for the host to create a fresh lobby.</p>
+        <a class="btn app-btn app-btn-primary mt-2" asp-controller="Lobby" asp-action="Index">Back To Lobby</a>
+    </div>
+</section>
 

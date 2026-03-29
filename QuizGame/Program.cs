@@ -30,6 +30,7 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<GameService>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<IAnswerService, AnswerService>();
+builder.Services.AddScoped<IContentManagementService, ContentManagementService>();
 builder.Services.AddSingleton<RoundTimerService>();
 builder.Services.AddScoped<LeaderboardService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();

@@ -1,0 +1,31 @@
+@{
+    ViewData["Title"] = "Question Bank";
+}
+
+<section class="manage-page">
+    <header class="manage-header glass-panel auto-reveal">
+        <div>
+            <p class="section-kicker mb-1">Content Studio</p>
+            <h1 class="section-title mb-1">Question Bank</h1>
+            <p class="muted-label mb-0">This is your place to add categories first, then add quiz questions with answer options.</p>
+        </div>
+    </header>
+
+    <div class="manage-grid">
+        <article class="manage-card glass-panel auto-reveal">
+            <h3><i class="fa-solid fa-layer-group"></i> Add Categories</h3>
+            <p>Create category groups used when building quizzes and rooms.</p>
+            <a class="btn btn-neon" asp-controller="QuestionBank" asp-action="Categories">
+                <i class="fa-solid fa-circle-plus"></i> Open Categories
+            </a>
+        </article>
+
+        <article class="manage-card glass-panel auto-reveal">
+            <h3><i class="fa-solid fa-circle-question"></i> Add Questions</h3>
+            <p>Add question text, options, and the correct answer for each category.</p>
+            <a class="btn btn-coral" asp-controller="QuestionBank" asp-action="Questions">
+                <i class="fa-solid fa-pen"></i> Open Questions
+            </a>
+        </article>
+    </div>
+</section>

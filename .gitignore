@@ -5,4 +5,3 @@ obj/
 *.user
 .DS_Store
 appsettings.Development.json
-.docx
