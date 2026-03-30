@@ -10,7 +10,6 @@ namespace QuizGame.Services.Implementations;
 
 public class RoundTimerService
 {
-    // One CancellationTokenSource per active GameQuestion
     private readonly ConcurrentDictionary<int, CancellationTokenSource> _timers = new();
     private readonly ConcurrentDictionary<int, byte> _finalizedGames = new();
 
@@ -23,31 +22,27 @@ public class RoundTimerService
         _scopeFactory = scopeFactory;
     }
 
-    // Called when a question becomes Active
     public void StartTimer(int gameQuestionId, int gameId, string roomCode, int seconds)
     {
-        CancelTimer(gameQuestionId); // safety - cancel any leftover timer
+        CancelTimer(gameQuestionId);
 
         var cts = new CancellationTokenSource();
         _timers[gameQuestionId] = cts;
 
-        // Fire and forget - runs in background
+
         _ = Task.Run(async () =>
         {
             try
             {
                 await Task.Delay(seconds * 1000, cts.Token);
-                // If we reach here, nobody won in time
                 await OnTimerExpiredAsync(gameQuestionId, gameId, roomCode);
             }
             catch (OperationCanceledException)
             {
-                // A winner was found and cancelled this timer - do nothing
             }
         });
     }
 
-    // Called by the Hub immediately after a winning answer is confirmed
     public void CancelTimer(int gameQuestionId)
     {
         if (_timers.TryRemove(gameQuestionId, out var cts))
@@ -57,7 +52,6 @@ public class RoundTimerService
         }
     }
 
-    // Fires when time runs out with no winner
     private async Task OnTimerExpiredAsync(int gameQuestionId, int gameId, string roomCode)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -65,7 +59,6 @@ public class RoundTimerService
 
         var gq = await gameQRepo.GetByIdAsync(gameQuestionId);
 
-        // Another request may have closed it already - double check
         if (gq == null || gq.Status != QuestionStatus.Active) return;
 
         await gameQRepo.CloseAsync(gameQuestionId, null, 0);
@@ -84,11 +77,8 @@ public class RoundTimerService
         await AdvanceGameAsync(gameId, roomCode, scope);
     }
 
-    // Advance to the next question or end the game.
-    // Called by both the Hub (after a winner) and by OnTimerExpiredAsync (after timeout)
     public async Task AdvanceGameAsync(int gameId, string roomCode, IServiceScope? existingScope = null)
     {
-        // Use provided scope or create a new one
         var scope = existingScope ?? _scopeFactory.CreateScope();
         bool shouldDispose = existingScope == null;
 
@@ -101,7 +91,6 @@ public class RoundTimerService
 
             if (next != null)
             {
-                // There is a next question - activate it and broadcast
                 await gameQRepo.ActivateAsync(next.Id);
 
                 var vm = new ActiveQuestionViewModel
@@ -116,7 +105,6 @@ public class RoundTimerService
                     {
                         Id = o.Id,
                         Text = o.Text
-                        // no IsCorrect
                     }).ToList()
                 };
 
@@ -126,7 +114,6 @@ public class RoundTimerService
             }
             else
             {
-                // No more questions - game over
                 if (!_finalizedGames.TryAdd(gameId, 0))
                     return;
 

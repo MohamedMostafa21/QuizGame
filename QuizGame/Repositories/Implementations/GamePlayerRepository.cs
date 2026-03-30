@@ -37,7 +37,6 @@ public class GamePlayerRepository : Repository<GamePlayer>, IGamePlayerRepositor
             _context.GamePlayers.Remove(player);
     }
 
-    // Gnsh
     public Task<List<GamePlayer>> GetByGameAsync(int gameId) =>
         _context.GamePlayers
             .Include(gp => gp.User)

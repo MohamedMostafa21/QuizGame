@@ -25,7 +25,6 @@ builder.Services.AddIdentity<User, IdentityRole>(options => {
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 
-// Register here ya shabab
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<GameService>();
 builder.Services.AddScoped<ChatService>();

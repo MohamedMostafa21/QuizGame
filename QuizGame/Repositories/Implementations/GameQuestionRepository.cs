@@ -54,7 +54,6 @@ public class GameQuestionRepository : Repository<GameQuestion>, IGameQuestionRep
             .Include(gq => gq.Question)
             .FirstOrDefault(gq => gq.Id == id);
 
-    // Gnsh
 
     public Task<GameQuestion?> GetByIdAsync(int id) =>
         _context.GameQuestions

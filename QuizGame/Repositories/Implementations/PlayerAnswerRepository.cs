@@ -18,7 +18,6 @@ public class PlayerAnswerRepository : Repository<PlayerAnswer>, IPlayerAnswerRep
         _context.PlayerAnswers
             .Any(pa => pa.GameQuestionId == gameQuestionId && pa.UserId == userId);
 
-    // Gnsh
     public Task<bool> HasAnsweredAsync(int gameQuestionId, string userId) =>
         _context.PlayerAnswers
             .AnyAsync(pa => pa.GameQuestionId == gameQuestionId && pa.UserId == userId);

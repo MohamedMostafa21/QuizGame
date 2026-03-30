@@ -30,7 +30,6 @@ public class GameRepository : Repository<Game>, IGameRepository
         }
     }
 
-    // Gnsh
     public Task<Game?> GetByIdAsync(int id) =>
         _context.Games
             .Include(g => g.GamePlayers).ThenInclude(gp => gp.User)

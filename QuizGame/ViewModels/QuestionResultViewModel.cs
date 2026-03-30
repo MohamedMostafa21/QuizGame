@@ -1,8 +1,6 @@
 namespace QuizGame.ViewModels
 {
-    /// <summary>
-    /// View model for a question's result in a game
-    /// </summary>
+
     public class QuestionResultViewModel
     {
         public int Order { get; set; }

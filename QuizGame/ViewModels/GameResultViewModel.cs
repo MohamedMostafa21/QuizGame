@@ -1,8 +1,6 @@
 namespace QuizGame.ViewModels
 {
-    /// <summary>
-    /// View model for game results summary
-    /// </summary>
+
     public class GameResultViewModel
     {
         public string RoomCode { get; set; } = string.Empty;

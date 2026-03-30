@@ -9,9 +9,7 @@ using QuizGame.ViewModels;
 
 namespace QuizGame.Services
 {
-    /// <summary>
-    /// Service for managing leaderboards, game results, and user scoring
-    /// </summary>
+   
     public class LeaderboardService
     {
         private readonly IGamePlayerRepository _gamePlayerRepository;
@@ -20,14 +18,6 @@ namespace QuizGame.Services
         private readonly IGameRepository _gameRepository;
         private readonly UserManager<User> _userManager;
 
-        /// <summary>
-        /// Initializes a new instance of the LeaderboardService
-        /// </summary>
-        /// <param name="gamePlayerRepository">Repository for game player data</param>
-        /// <param name="gameQuestionRepository">Repository for game questions data</param>
-        /// <param name="playerAnswerRepository">Repository for player answers data</param>
-        /// <param name="gameRepository">Repository for game data</param>
-        /// <param name="userManager">ASP.NET Identity user manager</param>
         public LeaderboardService(
             IGamePlayerRepository gamePlayerRepository,
             IGameQuestionRepository gameQuestionRepository,
@@ -42,11 +32,7 @@ namespace QuizGame.Services
             _userManager = userManager;
         }
 
-        /// <summary>
-        /// Gets the top N users by total accumulated score across all games
-        /// </summary>
-        /// <param name="n">Number of top users to retrieve</param>
-        /// <returns>List of top users ordered by TotalScore descending</returns>
+  
         public async Task<List<User>> GetGlobalTopAsync(int n)
         {
             if (n <= 0)
@@ -89,12 +75,6 @@ namespace QuizGame.Services
             }
         }
 
-
-        /// <summary>
-        /// Gets detailed results for a specific game, including final scores and per-question breakdown
-        /// </summary>
-        /// <param name="roomCode">The room code of the game</param>
-        /// <returns>Game result view model with player rankings and question details</returns>
         public async Task<GameResultViewModel> GetGameResultsAsync(string roomCode)
 
         {
@@ -202,11 +182,6 @@ namespace QuizGame.Services
         }
 
 
-        /// <summary>
-        /// Finalizes a game by updating each player's total accumulated score
-        /// </summary>
-        /// <param name="gameId">The ID of the game to finalize</param>
-        /// <returns>Task representing the asynchronous operation</returns>
         public async Task FinalizeGameAsync(int gameId)
         {
             if (gameId <= 0)
@@ -229,11 +204,7 @@ namespace QuizGame.Services
             }
         }
 
-        /// <summary>
-        /// Gets the current leaderboard standings for an in-progress game
-        /// </summary>
-        /// <param name="roomCode">The room code of the game</param>
-        /// <returns>List of current player rankings ordered by score descending</returns>
+       
         public async Task<List<PlayerRankingViewModel>> GetCurrentStandingsAsync(string roomCode)
         {
             if (string.IsNullOrWhiteSpace(roomCode))

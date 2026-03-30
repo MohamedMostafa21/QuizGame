@@ -1,8 +1,6 @@
 namespace QuizGame.ViewModels
 {
-    /// <summary>
-    /// View model for a player's ranking in a game
-    /// </summary>
+
     public class PlayerRankingViewModel
     {
         public string UserName { get; set; } = string.Empty;
